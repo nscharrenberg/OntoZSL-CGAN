@@ -576,6 +576,7 @@ pip-selfcheck.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,git,pycharm+all,visualstudiocode,test,django,flask,jupyternotebooks,virtualenv
 
+out.csv
 loss_output_*.txt
 synthetic_samples.csv
 **/.DS_STORE
