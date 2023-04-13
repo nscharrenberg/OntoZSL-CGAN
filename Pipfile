@@ -2,6 +2,12 @@
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "dp-cgans"
+repository = "https://github.com/nscharrenberg/OntoZSL-DPCGAN"
+license = "MIT"
+authors = ["Chang Sun <sunchang0124@gmail.com>", "Leopold Cudilla <leopoldcudilla@gmail.com>", "Vincent Emonet <vincent.emonet@gmail.com>", "Noah Scharrenberg <nscharrenberg@hotmail.com>"]
+version = "0.0.5"
+description = "A library to generate synthetic tabular data using Conditional Generative Adversary Networks (GANs) combined with Differential Privacy techniques and Ontological Embeddings."
+keywords = [ "CGAN", "synthetic data", "DP", "Differential Privacy", "GAN", "Ontologies"]
 
 [scripts]
 dp-cgans = "python src/dp_cgans/__main__.py"
