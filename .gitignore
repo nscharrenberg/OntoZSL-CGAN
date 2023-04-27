@@ -580,3 +580,7 @@ out.csv
 loss_output_*.txt
 synthetic_samples.csv
 **/.DS_STORE
+
+resources/models/*
+
+resources/ontologies/**
