@@ -3,7 +3,7 @@ from typing import List, Optional
 import pandas as pd
 import typer
 from src.dp_cgans import DP_CGAN
-from src.dp_cgans.embeddings import owl2vec, dataset_splitter, load_embedding, embed, ProjectionType, WalkerType
+from src.dp_cgans.embeddings import load_embedding, embed, ProjectionType, WalkerType
 
 cli = typer.Typer()
 
