@@ -21,7 +21,7 @@ This package is extended from SDV (https://github.com/sdv-dev/SDV), CTGAN (https
 
 ## 📥️ Installation
 
-You will need Python >=3.8+ and <3.10
+You will need Python >=3.8+ and <3.10 and Java JDK 8.
 
 ```shell
 pip install dp-cgans
@@ -50,6 +50,18 @@ Get a full rundown of the available options for generating synthetic data with:
 ```bash
 dp-cgans gen --help
 ```
+
+#### Ontological Embeddings
+To embed an ontology into an embedded model run the following:
+```bash
+dp-cgans embed --data resources/ontologies/doid.owl --model-path resources/models/doid.model
+```
+
+Get a full rundown of the available options for generating synthetic data with:
+```bash
+dp-cgans embed --help
+```
+
 
 ### 🐍 Use with python 
 

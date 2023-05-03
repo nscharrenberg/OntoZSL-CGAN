@@ -1,10 +1,17 @@
+import mowl
+
+# Needs to be instantiated before other MOWL imports are triggered.
+mowl.init_jvm("5g")
+
 import glob
 import sys
+from typing import Optional, List
 
 import pandas as pd
 import pkg_resources
 import typer
 from dp_cgans import DP_CGAN
+from dp_cgans.embeddings import embed, WalkerType, ProjectionType, load_embedding
 
 cli = typer.Typer()
 
@@ -57,6 +64,75 @@ def cli_gen(
 @cli.command("version")
 def cli_version():
     print(pkg_resources.get_distribution('dp_cgans').version)
+
+
+@cli.command("embed")
+def cli_embed(
+        data: str = typer.Option("data.owl", help="Path to a Semantic Ontology Language Dataset (.owl)"),
+        model_path: str = typer.Option("data.model", help="Path to where the model should be, or is, stored (.model)"),
+        dim: int = typer.Option(5, help="Dimensionality of the Word Vectors used to embed the model"),
+        projection_type: str = typer.Option("owl2vecstar", help="The Projection Method that is used to project the "
+                                                                "semantic information into a graph the possible "
+                                                                "methods are owl2vecstar, dl2vec, taxonomy and "
+                                                                "taxonomy_rels"),
+        bidirectional_taxonomy: bool = typer.Option(False, help="If true, then per each subClass edge one superClass "
+                                                                "edge will be generated Can only be True when "
+                                                                "use_taxonomy is True."),
+        include_literals: bool = typer.Option(False,
+                                              help="If true, then the graph will also include triples involving data "
+                                                   "property assertions and annotations, for owl2vecstar"),
+        only_taxonomy: bool = typer.Option(False,
+                                           help="If true, then the projection will only include subClass edges, "
+                                                "for owl2vecstar"),
+        use_taxonomy: bool = typer.Option(False,
+                                          help="If true, then taxonomies will be used. Otherwise, the relations "
+                                               "parameter should be true, for taxonomy_rels"),
+        relations: Optional[List[str]] = typer.Option(None, help="Contains a list of relations in string format, "
+                                                                 "for taxonomy_rels Can only be non-empty when "
+                                                                 "use_taxonomy is False."),
+        walker_type: str = typer.Option("deepwalk",
+                                        help="The walker Method that is used to learn the representations for "
+                                             "vertices in the projected graph the possible methods are deepwalk and "
+                                             "node2vec"),
+        num_walks: int = typer.Option(10, help="The number of walks"),
+        walk_length: int = typer.Option(10, help="The length of a walk"),
+        workers: int = typer.Option(4, help="The amount of workers"),
+        alpha: int = typer.Option(4, help="The probability of a restart, for DeepWalk"),
+        p: int = typer.Option(4, help="he Return Hyperparameter, for Node2Vec"),
+        q: int = typer.Option(4, help="The In-Out Hyperparameter, for Node2Vec"),
+        epochs: int = typer.Option(4, help="Number of iterations (epochs) over the sentences, for Word2Vec"),
+        window: int = typer.Option(4,
+                                   help="Maximum distance between the current and predicted word within a sentence, "
+                                        "for Word2Vec"),
+        min_count: int = typer.Option(4, help="Ignores all words with total frequency lower than this, for Word2Vec"),
+        verbose: bool = typer.Option(False,
+                                     help="If True, then intermediate console message will be displayed to indicate "
+                                          "progress."),
+        load: bool = typer.Option(False,
+                                  help="If True, then the model_path will be used to load in an already embedded "
+                                       "model. Otherwise, it'll create a new embedded model."),
+):
+    if load:
+        return load_embedding(model_path)
+    else:
+        selected_projection_type = ProjectionType.OWL2VECSTAR
+        for projection in ProjectionType:
+            if projection.value is projection_type:
+                selected_projection_type = projection
+                break
+
+        selected_walker_type = WalkerType.DEEPWALK
+        for walker in WalkerType:
+            if walker.value is walker_type:
+                selected_walker_type = walker
+                break
+
+        return embed(data=data, model_path=model_path, dim=dim, verbose=verbose,
+                     projection_type=selected_projection_type, bidirectional_taxonomy=bidirectional_taxonomy,
+                     include_literals=include_literals, only_taxonomy=only_taxonomy, use_taxonomy=use_taxonomy,
+                     relations=relations, walker_type=selected_walker_type, num_walks=num_walks,
+                     walk_length=walk_length, workers=workers, alpha=alpha, p=p, q=q, epochs=epochs, window=window,
+                     min_count=min_count)
 
 
 if __name__ == "__main__":

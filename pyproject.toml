@@ -39,7 +39,7 @@ copulas = "*"
 pyreadstat = "*"
 sdv = "0.14.0"
 typer = "*"
-mowl-borg = {path = "mowl/mowl_borg-0.2.0-py38-none-any.whl"}
+mowl-borg = {path = "mowl/mowl_borg-0.2.0-py38-none-any.whl", develop = true}
 
 
 [tool.poetry.dev-dependencies]
