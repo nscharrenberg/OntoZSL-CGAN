@@ -1,6 +1,8 @@
 loss_output_*.txt
 out.csv
 synthetic_samples.csv
+resources/ontologies/*
+resources/models/*
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,venv,git,pycharm+all
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,venv,git,pycharm+all

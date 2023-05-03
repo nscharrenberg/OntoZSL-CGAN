@@ -1075,7 +1075,7 @@ category = "main"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "mowl_borg-0.2.0-py38-none-any.whl", hash = "sha256:4249842bded7becadef582e3ed70c4316f7361c3b4ec4c1bed447cdfcd202958"},
+    {file = "mowl_borg-0.2.0-py38-none-any.whl", hash = "sha256:f601e8ef6a04c37511772a14aaef16eca7d60c992eed2752bc134fe5065f6d9e"},
 ]
 
 [package.dependencies]
@@ -2653,4 +2653,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.10"
-content-hash = "b435c741054f008e5d95babcea8e517483267e677cf05cf0034d958fa885cc76"
+content-hash = "910533a39001204e715ac9c0f4022f4b2508330ef4b11c32b3281bc9ce6eb2fd"
