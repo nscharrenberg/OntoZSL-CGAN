@@ -1,7 +1,16 @@
+loss_output_*.txt
+synthetic_samples.csv
+
+# Ingore Mac weird file
+**/.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
+.bash_history
+
 
 # C extensions
 *.so
