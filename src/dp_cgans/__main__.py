@@ -1,8 +1,5 @@
 import mowl
-
-# Needs to be instantiated before other MOWL imports are triggered.
 mowl.init_jvm("5g")
-
 import glob
 import sys
 from typing import Optional, List
@@ -11,7 +8,10 @@ import pandas as pd
 import pkg_resources
 import typer
 from dp_cgans import DP_CGAN
-from dp_cgans.embeddings import embed, WalkerType, ProjectionType, load_embedding
+from dp_cgans.embeddings import embed, WalkerType, ProjectionType, load_embedding, log
+from dp_cgans.preprocess import download_datasets, download, preprocess
+from dp_cgans.preprocess.converters import xml_to_csv
+from dp_cgans.preprocess.dataset import create_training_and_test_dataset
 
 cli = typer.Typer()
 
@@ -133,6 +133,52 @@ def cli_embed(
                      relations=relations, walker_type=selected_walker_type, num_walks=num_walks,
                      walk_length=walk_length, workers=workers, alpha=alpha, p=p, q=q, epochs=epochs, window=window,
                      min_count=min_count)
+
+
+@cli.command("download")
+def cli_download(
+    url: Optional[str] = typer.Option(None, help="The source to download from"),
+    location_path: str = typer.Option(None, help="The directory path to store the downloaded file to"),
+    name: Optional[str] = typer.Option(None, help="The name the file should be saved as (including extension)"),
+    verbose: bool = typer.Option(True, help="Display logs"),
+    default: bool = typer.Option(False, help="Whether or not to automatically download the necessary files.")
+):
+    if url is None and default is False:
+        log(text=f'❌️Failed to download file. You must either give an url or have the "--default" flag set.',
+            verbose=True)
+        return
+
+    if default is True:
+        log(text=f'⚠️Ignoring "--url" and "--name" flags.', verbose=verbose)
+        download_datasets(location_path=location_path, verbose=verbose)
+    else:
+        download(url=url, location_path=location_path, file_name=name, verbose=verbose)
+
+
+@cli.command("xml_to_csv")
+def cli_download(
+    source: str = typer.Option(None, help="The XML file path to read"),
+    target: str = typer.Option(None, help="The file path to write the CSV file to"),
+    verbose: bool = typer.Option(True, help="Display logs"),
+):
+    xml_to_csv(source, target, verbose)
+
+
+@cli.command("preprocess")
+def cli_download(
+    file: str = typer.Option(None, help="The file path of the CSV to be preprocessed"),
+    destination: str = typer.Option(None, help="The directory path where the processed data should be saved to"),
+    verbose: bool = typer.Option(True, help="Display logs"),
+):
+    preprocess(file, destination, verbose)
+
+
+@cli.command("split")
+def cli_download(
+    file: str = typer.Option(None, help="The file path of the hp.obo file"),
+    verbose: bool = typer.Option(True, help="Display logs"),
+):
+    create_training_and_test_dataset(file, verbose)
 
 
 if __name__ == "__main__":
