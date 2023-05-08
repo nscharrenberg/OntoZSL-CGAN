@@ -40,6 +40,11 @@ pyreadstat = "*"
 sdv = "0.14.0"
 typer = "*"
 mowl-borg = {path = "mowl/mowl_borg-0.2.0-py38-none-any.whl", develop = true}
+owlready2 = "^0.41"
+rdflib = "^6.3.2"
+jupyter = "^1.0.0"
+nltk = "^3.8.1"
+owl2vec-star = {git = "https://github.com/cudillal/OWL2Vec-Star.git"}
 
 
 [tool.poetry.dev-dependencies]
