@@ -9,9 +9,9 @@ import pkg_resources
 import typer
 from dp_cgans import DP_CGAN
 from dp_cgans.embeddings import embed, WalkerType, ProjectionType, load_embedding, log
-from dp_cgans.preprocess import download_datasets, download, preprocess
-from dp_cgans.preprocess.converters import xml_to_csv
-from dp_cgans.preprocess.dataset import create_training_and_test_dataset
+from dp_cgans.preprocess import download_datasets, download, csv_to_txt
+from dp_cgans.preprocess.xml_to_csv import xml_to_csv
+from dp_cgans.preprocess.dataset import create_training_and_test_dataset, generate_synthetic_data
 
 cli = typer.Typer()
 
@@ -164,21 +164,36 @@ def cli_download(
     xml_to_csv(source, target, verbose)
 
 
-@cli.command("preprocess")
+@cli.command("csv_to_txt")
 def cli_download(
-    file: str = typer.Option(None, help="The file path of the CSV to be preprocessed"),
-    destination: str = typer.Option(None, help="The directory path where the processed data should be saved to"),
+    source: str = typer.Option(None, help="The CSV file path to read"),
+    target: str = typer.Option(None, help="The directory path where the processed data should be saved to"),
     verbose: bool = typer.Option(True, help="Display logs"),
 ):
-    preprocess(file, destination, verbose)
+    csv_to_txt(source, target, verbose)
 
 
 @cli.command("split")
 def cli_download(
-    file: str = typer.Option(None, help="The file path of the hp.obo file"),
+    url: str = typer.Option(None, help="The URL to your sparql database"),
+    target: str = typer.Option(None, help="The directory path where the seen and unseen (pkl) files should be saved."),
     verbose: bool = typer.Option(True, help="Display logs"),
 ):
-    create_training_and_test_dataset(file, verbose)
+    create_training_and_test_dataset(url, target, verbose)
+
+
+@cli.command("genrd")
+def cli_download(
+    file: str = typer.Option(None, help="The Phenotype (csv) file"),
+    seen: str = typer.Option(None, help="The Seen Rare Disease (pkl) file"),
+    unseen: str = typer.Option(None, help="The Unseen Rare Disease (pkl) file"),
+    patients: int = typer.Option(10, help="The amount of patients to generate per Rare Disease"),
+    ontology: bool = typer.Option(True, help="If it should use the ontology Rare Diseases"),
+    small: bool = typer.Option(False, help="Whether or not to generate a small file"),
+    sort: bool = typer.Option(True, help="Whether sorting should be enabled"),
+    verbose: bool = typer.Option(True, help="Display logs"),
+):
+    generate_synthetic_data(file=file, seen_rd_file=seen, unseen_rd_file=unseen, patients_per_rd=patients, use_ontology_rds=ontology, gen_small_file=small, sort=sort, verbose=verbose)
 
 
 if __name__ == "__main__":

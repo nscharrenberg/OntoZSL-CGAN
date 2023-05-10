@@ -9,7 +9,7 @@ from dp_cgans.preprocess.utils import normalize_string, get_association_subclass
     get_diagnostic_criteria_entities, get_diagnostic_criteria_association_classes
 
 
-def preprocess(file_path: str, destination_path: str, verbose: bool = True):
+def csv_to_txt(file_path: str, destination_path: str, verbose: bool = True):
     log(text=f'🔄️  About to start Preprocessing', verbose=verbose)
 
     if not os.path.exists(file_path):

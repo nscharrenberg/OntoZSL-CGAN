@@ -60,3 +60,7 @@ def get_frequency_association_entities() -> dict:
         "very_rare": "very_rare",
         "excluded": "excluded"
     }
+
+
+def get_orpha_iri(orphacode):
+    return f"http://www.orpha.net/ORDO/Orphanet_{orphacode}"

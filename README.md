@@ -264,3 +264,43 @@ There are many excellent work on generating synthetic data using GANS and other 
    4. Generating and evaluating cross-sectional synthetic electronic healthcare data: Preserving data utility and patient privacy [[Paper](https://onlinelibrary.wiley.com/doi/epdf/10.1111/coin.12427)]
    5. Synthetic data for open and reproducible methodological research in social sciences and official statistics [[Paper](https://link.springer.com/article/10.1007/s11943-017-0214-8#Sec2)]
    6. A Study of the Impact of Synthetic Data Generation Techniques on Data Utility using the 1991 UK Samples of Anonymised Records [[Paper](https://unece.org/fileadmin/DAM/stats/documents/ece/ces/ge.46/2017/4_utility_paper.pdf)]
+
+
+## Ontologies
+### Data Preparation
+#### Download Necessary Files
+The Ontology dataset runs using the following datasets:
+- HOOM.owl
+- hp.obo
+- hpo.xml (products_en4.xml)
+- ordo.owl
+
+To download them run the following command:
+```bash
+dp-cgans download --default --location-path {directory_path_to_store_datasets}
+```
+`directory_path_to_store_datasets` could be: `~/project/datasets
+
+#### Convert hpo.xml to csv
+We want to process the xml to csv file.
+Run the following command:
+```bash
+dp-cgans xml_to_csv --source {path_to_hpo_xml} --target {file_path_for_csv_file}
+```
+`path_to_hpo_xml` could be: `~/projects/dataset/hpo.xml`
+`file_path_for_csv_file` could be: `~/projects/dataset/hpo.csv`
+
+#### Convert hpo.csv to txt
+The next step is to process the csv to txt such that they can be more easily interpreted.
+Run the following command:
+```bash
+dp-cgans csv_to_txt --source {path_to_the_csv_file} --target {directory_path_to_save_txt_to}
+```
+`path_to_the_csv_file` could be: `~/projects/dataset/hpo.csv`
+`directory_path_to_save_txt_to` could be: `~/projects/dataset/triples`
+
+#### Merging HP, HOOM and ORDO
+**Note**: There's no implementation yet to merge the `hp.obo` into the `hoom.owl` (called `merged_hoom.owl`) and to then merge the `ordo.owl` into the `merged_hoom.owl` (called `merged_ordo_hoom.owl`).
+So you can use Protege to merge perform the above merging steps and then save the new ontology dataset as a turtle file (ttl), an rdf/xml file (.rdf/.owl) and owl/xml file (.owx/.owl) 
+**Note**: Later-on we'll only require 1 file-type to be exported manually, or preferably none at all and it all being done automatically.
+**Note**: You'll only need to save a copy of this in turtle (.ttl) format if you'd like to import it into a sparQL database such as Apache Jena Fuseki.
