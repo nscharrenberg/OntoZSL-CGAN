@@ -15,7 +15,7 @@ class WalkerType(Enum):
 
 
 def create_random_walker(walker_type: WalkerType = WalkerType.DEEPWALK, num_walks: int = 10, walk_length: int = 10,
-                         outfile: any = None, workers: int = 1, alpha: float = 0., p: float = 1., q: float = 1.,
+                         outfile: any = "tmp/walks.txt", workers: int = 1, alpha: float = 0., p: float = 1., q: float = 1.,
                          verbose: bool = False) -> WalkingModel:
     """
     Create a Random Walker instance to walk the edges of the graph to create "sentences"

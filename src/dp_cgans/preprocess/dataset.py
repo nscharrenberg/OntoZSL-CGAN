@@ -1,3 +1,4 @@
+import os
 import pickle
 import random
 
@@ -9,24 +10,31 @@ from rdflib.query import Result
 
 from dp_cgans.embeddings import log
 from dp_cgans.preprocess import HPOHeaders
-from dp_cgans.preprocess.utils import get_orpha_iri
+from dp_cgans.preprocess.utils import get_orpha_iri, get_frequency_distribution
 
 
-def generate_synthetic_data(file, seen_rd_file, unseen_rd_file, patients_per_rd=10, use_ontology_rds=True, gen_small_file=False, print_every=0, del_col_th=0, sort=True, verbose = True):
-    frequency_dict = {  # frequency ids + associated probability
-        28405: 1,  # Obligate (100%)
-        28412: 0.895,  # Very frequent (99-80%)
-        28419: 0.545,  # Frequent (79-30%)
-        28426: 0.17,  # Occasional (29-5%)
-        28433: 0.025,  # Very rare (<4-1%)
-        28440: 0  # Excluded (0%)
-    }
+def generate_hpo_ordo_dictionaries(file, directory, verbose=True):
+    df = pd.read_csv(file)
+    df_hp = df[[HPOHeaders.HPO_TERM.value, HPOHeaders.HPO_ID.value]].drop_duplicates()
+    df_rd = df[[HPOHeaders.NAME.value, HPOHeaders.ORPHA_CODE.value]].drop_duplicates()
+    df_hp[HPOHeaders.HPO_ID.value] = "http://purl.obolibrary.org/obo/" + df_hp[HPOHeaders.HPO_ID.value].str.replace(":",
+                                                                                                                    "_")
+    df_rd[HPOHeaders.ORPHA_CODE.value] = "http://www.orpha.net/ORDO/Orphanet_" + df_rd[
+        HPOHeaders.ORPHA_CODE.value].astype(str)
+
+    df_hp.to_csv(os.path.join(directory, 'HPO.dict'), sep=';', encoding='utf-8', index=False, header=False)
+    df_rd.to_csv(os.path.join(directory, 'ORDO.dict'), sep=';', encoding='utf-8', index=False, header=False)
+
+
+def generate_synthetic_data(file, seen_rd_file, unseen_rd_file, directory, patients_per_rd=10, use_ontology_rds=True,
+                            gen_small_file=False, print_every=0, del_col_th=0, sort=True, verbose=True):
+    frequency_dict = get_frequency_distribution()
 
     log(f"📖 Progress: Reading HPO Products Dataset (csv)...", verbose)
     df = pd.read_csv(file)
 
     log(f"📖 Progress: Create Orpha URI from OrphaCode...", verbose)
-    df['Orpha_URI'] = get_orpha_iri(df[HPOHeaders.ORPHA_CODE.value].astype(str))
+    df['Orpha_URI'] = "http://www.orpha.net/ORDO/Orphanet_" + df[HPOHeaders.ORPHA_CODE.value].astype(str)
 
     log(f"📖 Progress: Reading Seen Rare Disease Pickle File (pkl)...", verbose)
     with open(seen_rd_file, 'rb') as f:
@@ -79,8 +87,114 @@ def generate_synthetic_data(file, seen_rd_file, unseen_rd_file, patients_per_rd=
         seen_rds = vectorize(df[HPOHeaders.ORPHA_CODE.value].unique())
         unseen_rds = []
 
+    for group_nb, (name, group) in enumerate(grouped):
+        hp_count = len(group)
 
+        for patient in range(patients_count, patients_count + patients_per_rd):
+            temp_hp = []
 
+            proba_results = np.random.rand(hp_count)
+            rd_n = ""
+            rd_iri = ""
+
+            for i, (orpha_code, rd_name, hp_name, frequency_id) in enumerate(zip(
+                    group[HPOHeaders.ORPHA_CODE.value],
+                    group[HPOHeaders.NAME.value],
+                    group[HPOHeaders.HPO_TERM.value],
+                    group[HPOHeaders.HPO_FREQUENCY_TAG_ID.value]
+            )):
+                distribution_check.get(frequency_id)[1] += 1
+
+                if rd_n == "":
+                    rd_n = rd_name
+                    rd_iri = get_orpha_iri(orpha_code)
+
+                if proba_results[i] >= 1 - frequency_dict[frequency_id]:
+                    temp_hp.append(hp_name)
+                    distribution_check.get(frequency_id)[0] += 1
+
+            if len(temp_hp) > 0:
+                row = np.zeros((total_hp_count,), dtype=int)
+
+                for hp in temp_hp:
+                    row[phenotypes_dict.get(hp)] = 1
+
+                if use_ontology_rds:
+                    if rd_iri in seen_rds_set:
+                        seen_patients_data.append(np.concatenate([[rd_n], row]))
+                    elif rd_iri in unseen_rds_set:
+                        unseen_patients_data.append(np.concatenate([[rd_n], row]))
+                    else:
+                        log(f"The Rare Disease '{rd_n}' is unknown", verbose)
+                        break
+                else:
+                    if rd_iri in seen_rds:
+                        seen_patients_data.append(np.concatenate([[rd_n], row]))
+                    elif rd_iri in unseen_rds:
+                        unseen_patients_data.append(np.concatenate([[rd_n], row]))
+                    else:
+                        log(f"The Rare Disease '{rd_n}' is unknown", verbose)
+                        break
+
+                if print_every > 0:
+                    if patients_count % print_every == 0:
+                        log(f"{patients_count} / {patients_per_rd * rd_count} patients generated", True)
+
+                patients_count += 1
+
+    unseen_index = len(unseen_patients_data) + 1
+    full_data = np.array(header + seen_patients_data + unseen_patients_data)
+
+    if del_col_th > 0:
+        col_sum = np.sum(full_data[1:, 1:].astype(int), axis=0)
+        mask = [True] + [s >= del_col_th for s in col_sum]
+        full_data = np.transpose(np.transpose(full_data)[mask])
+
+    seen_patients_data = full_data[:unseen_index]
+    headers = seen_patients_data[0]
+
+    seen_patients_data = pd.DataFrame(seen_patients_data[1:], columns=headers)
+    seen_patients_data = seen_patients_data.loc[:, (seen_patients_data != "0").any(axis=0)]
+
+    if sort:
+        seen_patients_data = seen_patients_data.sort_values(by=['rare_disease'])
+
+    unseen_patients_data = full_data[unseen_index:]
+    unseen_unique = np.unique(unseen_patients_data[:, :1])
+    unseen_patients_data = pd.DataFrame(unseen_patients_data, columns=headers)
+    unseen_patients_data = unseen_patients_data[unseen_patients_data.columns]
+
+    if sort:
+        unseen_patients_data = unseen_patients_data.sort_values(by=['rare_disease'])
+
+    log(f"{len(seen_patients_data)} seen patients generated ({len(seen_patients_data.columns)} columns)", verbose)
+    log(f"{len(unseen_patients_data)} unseen patients generated ({len(unseen_patients_data.columns)} columns)", verbose)
+
+    seen_patients_data.to_csv(
+        os.path.join(directory, ("small_" if gen_small_file else "") + "seen_patient_data.csv"),
+        encoding="utf-8",
+        index=False,
+        header=True
+    )
+
+    if len(unseen_patients_data) > 0:
+        unseen_patients_data.to_csv(
+            os.path.join(directory, ("small_" if gen_small_file else "") + "unseen_patient_data.csv"),
+            encoding="utf-8",
+            index=False,
+            header=True
+        )
+
+        with open(os.path.join(directory, ("small_" if gen_small_file else "") + "unseen_rare_diseases.txt"),
+                  "w") as unseen_file:
+            for rd in unseen_unique:
+                unseen_file.write(f"{rd}\n")
+
+    log(f"Total Rare Diseases: {rd_count}", verbose)
+    log(f"{rd_count - len(unseen_unique)} seen Rare Diseases", verbose)
+    log(f"{len(unseen_unique)} unseen Rare Diseases", verbose)
+
+    return distribution_check
 
 
 def create_training_and_test_dataset(sparql_url: str, directory: str, verbose: bool = True):
@@ -112,7 +226,8 @@ def create_training_and_test_dataset(sparql_url: str, directory: str, verbose: b
         "http://www.orpha.net/ORDO/Orphanet_512"  # Metachromatic leukodystrophy
     ]
 
-    seen_rds, unseen_rds = populate_rd_sets(rd_set=rd_set, rd_list=rd_list, rd_groups_dict=rd_group_dictionary, method='selected_rds', selected_seen_rds=seen, selected_unseen_rds=unseen)
+    seen_rds, unseen_rds = populate_rd_sets(rd_set=rd_set, rd_list=rd_list, rd_groups_dict=rd_group_dictionary,
+                                            method='selected_rds', selected_seen_rds=seen, selected_unseen_rds=unseen)
 
     log(f"📖 Saving: Storing Seen Rare Disease Dataset to pickle file...", verbose)
     with open(f'{directory}/seen.pkl', 'wb') as f:
@@ -126,7 +241,9 @@ def create_training_and_test_dataset(sparql_url: str, directory: str, verbose: b
         verbose)
 
 
-def populate_rd_sets(rd_set: set, rd_list: list, rd_groups_dict: dict, method: str = "no_groups", shuffle: bool = False, unseen_percentage: float = 0.2, selected_seen_rds: list = [], selected_unseen_rds: list = [], verbose: bool = True):
+def populate_rd_sets(rd_set: set, rd_list: list, rd_groups_dict: dict, method: str = "no_groups", shuffle: bool = False,
+                     unseen_percentage: float = 0.2, selected_seen_rds: list = [], selected_unseen_rds: list = [],
+                     verbose: bool = True):
     log(f"📖 Progress: Initializing Populating Rare Disease Sets...", verbose)
 
     seen_rds_set = set()
@@ -226,15 +343,18 @@ def populate_rd_sets(rd_set: set, rd_list: list, rd_groups_dict: dict, method: s
                         seen_rds_set.add(rd)
 
     if method not in ["no_groups", "selected_rds"]:
-        log(f"📖 Progress: method indicated grouping of diseases it taking place. Therefore, an additional step is performed to add them to the seen Rare Disease Sets...", verbose)
+        log(f"📖 Progress: method indicated grouping of diseases it taking place. Therefore, an additional step is performed to add them to the seen Rare Disease Sets...",
+            verbose)
         # TODO: allow some of these to be added to unseen_rds_set?
         # adding the RDs that aren't part of a RD group, in the seen set
         for rd in rd_list:
             if (rd not in seen_rds_set) and (rd not in unseen_rds_set):
                 seen_rds_set.add(rd)
 
-    log(f"📖 Info: The number of seen Rare Diseases is {len(seen_rds_set)} ({(len(seen_rds_set) / len(rd_set) * 100):.2f}%)", verbose)
-    log(f"📖 Info: The number of unseen Rare Diseases is {len(unseen_rds_set)} ({(len(unseen_rds_set) / len(rd_set) * 100):.2f}%)", verbose)
+    log(f"📖 Info: The number of seen Rare Diseases is {len(seen_rds_set)} ({(len(seen_rds_set) / len(rd_set) * 100):.2f}%)",
+        verbose)
+    log(f"📖 Info: The number of unseen Rare Diseases is {len(unseen_rds_set)} ({(len(unseen_rds_set) / len(rd_set) * 100):.2f}%)",
+        verbose)
 
     log(f"✅ Success! The seen and unseen Rare Disease Sets have been created.",
         verbose)
@@ -270,7 +390,8 @@ def build_dictionary(graph: rdflib.Graph, verbose: bool = True):
             if rd not in rd_groups_dict[group]:
                 rd_groups_dict[group].append(rd)
 
-    log(f"📖 Info: The number of unique, seen in Associated class Rare Diseases are {len(rd_list)}, {len(rd_set)}", verbose)
+    log(f"📖 Info: The number of unique, seen in Associated class Rare Diseases are {len(rd_list)}, {len(rd_set)}",
+        verbose)
     log(f"📖 Info: The number of Rare Disease Groups is {len(rd_groups_dict)}", verbose)
     len_sum = sum(len(dct) for dct in rd_groups_dict.values())
 
@@ -282,6 +403,7 @@ def build_dictionary(graph: rdflib.Graph, verbose: bool = True):
     log(f"✅ Success! The dictionary has been successfully build",
         verbose)
     return rd_groups_dict, rd_set, rd_list
+
 
 def query_get_rare_diseases_with_group(graph: rdflib.Graph) -> Result:
     query = """
@@ -333,7 +455,7 @@ def query_get_rare_diseases_by_subgroup(graph: rdflib.Graph, uri: str) -> Result
     }
     """
 
-    return graph.query(query, initBindings={ 'given_uri': URIRef(uri)})
+    return graph.query(query, initBindings={'given_uri': URIRef(uri)})
 
 
 def query_get_rare_diseases_by_word(graph: rdflib.Graph, word: str) -> Result:

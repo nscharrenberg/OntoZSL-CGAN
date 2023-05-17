@@ -1,4 +1,5 @@
 import mowl
+
 mowl.init_jvm("5g")
 import glob
 import sys
@@ -11,7 +12,10 @@ from dp_cgans import DP_CGAN
 from dp_cgans.embeddings import embed, WalkerType, ProjectionType, load_embedding, log
 from dp_cgans.preprocess import download_datasets, download, csv_to_txt
 from dp_cgans.preprocess.xml_to_csv import xml_to_csv
-from dp_cgans.preprocess.dataset import create_training_and_test_dataset, generate_synthetic_data
+from dp_cgans.preprocess.dataset import create_training_and_test_dataset, generate_synthetic_data, \
+    generate_hpo_ordo_dictionaries
+from dp_cgans.preprocess.utils import show_distribution
+from dp_cgans.embeddings.embed import embed_alt, check, embed_p2
 
 cli = typer.Typer()
 
@@ -19,6 +23,8 @@ cli = typer.Typer()
 BOLD = '\033[1m'
 END = '\033[0m'
 GREEN = '\033[32m'
+
+
 # RED = '\033[91m'
 # YELLOW = '\033[33m'
 # CYAN = '\033[36m'
@@ -28,26 +34,25 @@ GREEN = '\033[32m'
 
 @cli.command("gen")
 def cli_gen(
-    input_file: str,
-    gen_size: int = typer.Option(100, help="Number of rows in the generated samples file"),
-    epochs: int = typer.Option(100, help="Number of epochs"),
-    batch_size: int = typer.Option(1000, help="Batch size"),
-    output: str = typer.Option("synthetic_samples.csv", help="Path to the output"),
-    verbose: bool = typer.Option(True, help="Display logs")
+        input_file: str,
+        gen_size: int = typer.Option(100, help="Number of rows in the generated samples file"),
+        epochs: int = typer.Option(100, help="Number of epochs"),
+        batch_size: int = typer.Option(1000, help="Batch size"),
+        output: str = typer.Option("synthetic_samples.csv", help="Path to the output"),
+        verbose: bool = typer.Option(True, help="Display logs")
 ):
-
-    tabular_data=pd.read_csv(input_file)
+    tabular_data = pd.read_csv(input_file)
 
     model = DP_CGAN(
-        epochs=epochs, # number of training epochs
-        batch_size=batch_size, # the size of each batch
+        epochs=epochs,  # number of training epochs
+        batch_size=batch_size,  # the size of each batch
         log_frequency=True,
         verbose=verbose,
         generator_dim=(128, 128, 128),
         discriminator_dim=(128, 128, 128),
-        generator_lr=2e-4, 
+        generator_lr=2e-4,
         discriminator_lr=2e-4,
-        discriminator_steps=1, 
+        discriminator_steps=1,
         private=False,
     )
 
@@ -70,6 +75,7 @@ def cli_version():
 def cli_embed(
         data: str = typer.Option("data.owl", help="Path to a Semantic Ontology Language Dataset (.owl)"),
         model_path: str = typer.Option("data.model", help="Path to where the model should be, or is, stored (.model)"),
+        txt: str = typer.Option(None, help="Path to where the model should be, or is, stored as text file (.txt)"),
         dim: int = typer.Option(5, help="Dimensionality of the Word Vectors used to embed the model"),
         projection_type: str = typer.Option("owl2vecstar", help="The Projection Method that is used to project the "
                                                                 "semantic information into a graph the possible "
@@ -111,7 +117,12 @@ def cli_embed(
         load: bool = typer.Option(False,
                                   help="If True, then the model_path will be used to load in an already embedded "
                                        "model. Otherwise, it'll create a new embedded model."),
+        alt: bool = typer.Option(False, help="Use the Alternative Embedding model")
 ):
+    if alt:
+        embed_alt(data, model_path)
+        return
+
     if load:
         return load_embedding(model_path)
     else:
@@ -132,16 +143,34 @@ def cli_embed(
                      include_literals=include_literals, only_taxonomy=only_taxonomy, use_taxonomy=use_taxonomy,
                      relations=relations, walker_type=selected_walker_type, num_walks=num_walks,
                      walk_length=walk_length, workers=workers, alpha=alpha, p=p, q=q, epochs=epochs, window=window,
-                     min_count=min_count)
+                     min_count=min_count, txt=txt)
+
+
+@cli.command("embed3")
+def cli_embedp2(
+        walker: str = typer.Option("walks.txt", help="Path to where the walker should be, or is, stored (.txt)"),
+        model_path: str = typer.Option("data.model", help="Path to where the model should be, or is, stored (.model)"),
+        txt: str = typer.Option(None, help="Path to where the model should be, or is, stored as text file (.txt)"),
+        dim: int = typer.Option(5, help="Dimensionality of the Word Vectors used to embed the model"),
+        epochs: int = typer.Option(4, help="Number of iterations (epochs) over the sentences, for Word2Vec"),
+        window: int = typer.Option(4,
+                                   help="Maximum distance between the current and predicted word within a sentence, "
+                                        "for Word2Vec"),
+        min_count: int = typer.Option(4, help="Ignores all words with total frequency lower than this, for Word2Vec"),
+        verbose: bool = typer.Option(False,
+                                     help="If True, then intermediate console message will be displayed to indicate "
+                                          "progress."),
+):
+    embed_p2(walk_file=walker, model_path=model_path, txt=txt, dim=dim, epochs=epochs, window=window, min_count=min_count, verbose=verbose)
 
 
 @cli.command("download")
 def cli_download(
-    url: Optional[str] = typer.Option(None, help="The source to download from"),
-    location_path: str = typer.Option(None, help="The directory path to store the downloaded file to"),
-    name: Optional[str] = typer.Option(None, help="The name the file should be saved as (including extension)"),
-    verbose: bool = typer.Option(True, help="Display logs"),
-    default: bool = typer.Option(False, help="Whether or not to automatically download the necessary files.")
+        url: Optional[str] = typer.Option(None, help="The source to download from"),
+        location_path: str = typer.Option(None, help="The directory path to store the downloaded file to"),
+        name: Optional[str] = typer.Option(None, help="The name the file should be saved as (including extension)"),
+        verbose: bool = typer.Option(True, help="Display logs"),
+        default: bool = typer.Option(False, help="Whether or not to automatically download the necessary files.")
 ):
     if url is None and default is False:
         log(text=f'❌️Failed to download file. You must either give an url or have the "--default" flag set.',
@@ -156,44 +185,69 @@ def cli_download(
 
 
 @cli.command("xml_to_csv")
-def cli_download(
-    source: str = typer.Option(None, help="The XML file path to read"),
-    target: str = typer.Option(None, help="The file path to write the CSV file to"),
-    verbose: bool = typer.Option(True, help="Display logs"),
+def cli_xml_to_csv(
+        source: str = typer.Option(None, help="The XML file path to read"),
+        target: str = typer.Option(None, help="The file path to write the CSV file to"),
+        verbose: bool = typer.Option(True, help="Display logs"),
 ):
     xml_to_csv(source, target, verbose)
 
 
 @cli.command("csv_to_txt")
-def cli_download(
-    source: str = typer.Option(None, help="The CSV file path to read"),
-    target: str = typer.Option(None, help="The directory path where the processed data should be saved to"),
-    verbose: bool = typer.Option(True, help="Display logs"),
+def cli_csv_to_txt(
+        source: str = typer.Option(None, help="The CSV file path to read"),
+        target: str = typer.Option(None, help="The directory path where the processed data should be saved to"),
+        verbose: bool = typer.Option(True, help="Display logs"),
 ):
     csv_to_txt(source, target, verbose)
 
 
 @cli.command("split")
-def cli_download(
-    url: str = typer.Option(None, help="The URL to your sparql database"),
-    target: str = typer.Option(None, help="The directory path where the seen and unseen (pkl) files should be saved."),
-    verbose: bool = typer.Option(True, help="Display logs"),
+def cli_split(
+        url: str = typer.Option(None, help="The URL to your sparql database"),
+        target: str = typer.Option(None,
+                                   help="The directory path where the seen and unseen (pkl) files should be saved."),
+        verbose: bool = typer.Option(True, help="Display logs"),
 ):
     create_training_and_test_dataset(url, target, verbose)
 
 
 @cli.command("genrd")
-def cli_download(
-    file: str = typer.Option(None, help="The Phenotype (csv) file"),
-    seen: str = typer.Option(None, help="The Seen Rare Disease (pkl) file"),
-    unseen: str = typer.Option(None, help="The Unseen Rare Disease (pkl) file"),
-    patients: int = typer.Option(10, help="The amount of patients to generate per Rare Disease"),
-    ontology: bool = typer.Option(True, help="If it should use the ontology Rare Diseases"),
-    small: bool = typer.Option(False, help="Whether or not to generate a small file"),
-    sort: bool = typer.Option(True, help="Whether sorting should be enabled"),
-    verbose: bool = typer.Option(True, help="Display logs"),
+def cli_genrd(
+        file: str = typer.Option(None, help="The Phenotype (csv) file"),
+        seen: str = typer.Option(None, help="The Seen Rare Disease (pkl) file"),
+        unseen: str = typer.Option(None, help="The Unseen Rare Disease (pkl) file"),
+        directory: str = typer.Option(None, help="The directory to save to patient data to."),
+        patients: int = typer.Option(10, help="The amount of patients to generate per Rare Disease"),
+        ontology: bool = typer.Option(True, help="If it should use the ontology Rare Diseases"),
+        small: bool = typer.Option(False, help="Whether or not to generate a small file"),
+        sort: bool = typer.Option(True, help="Whether sorting should be enabled"),
+        plot: bool = typer.Option(True, help="Show the Distribution Plot"),
+        verbose: bool = typer.Option(True, help="Display logs"),
 ):
-    generate_synthetic_data(file=file, seen_rd_file=seen, unseen_rd_file=unseen, patients_per_rd=patients, use_ontology_rds=ontology, gen_small_file=small, sort=sort, verbose=verbose)
+    distribution = generate_synthetic_data(file=file, seen_rd_file=seen, unseen_rd_file=unseen, directory=directory,
+                                           patients_per_rd=patients, use_ontology_rds=ontology, gen_small_file=small,
+                                           sort=sort, verbose=verbose)
+
+    if plot:
+        show_distribution(distribution)
+
+
+@cli.command("dict")
+def cli_dict(
+        file: str = typer.Option(None, help="The Phenotype (csv) file"),
+        directory: str = typer.Option(None, help="The directory to save to patient data to."),
+        verbose: bool = typer.Option(True, help="Display logs"),
+):
+    generate_hpo_ordo_dictionaries(file, directory, verbose)
+
+
+@cli.command("check")
+def cli_dict(
+        file: str = typer.Option(None, help="The Phenotype (csv) file"),
+        verbose: bool = typer.Option(True, help="Display logs"),
+):
+    check(file)
 
 
 if __name__ == "__main__":

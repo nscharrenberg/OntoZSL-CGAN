@@ -1,12 +1,16 @@
+import os.path
 from typing import List
 
-from gensim.models import Word2Vec
+import nltk
+import owl2vec_star.owl2vec_star
+from gensim.models import Word2Vec, KeyedVectors
+from gensim.models.word2vec import LineSentence
 from mowl.datasets import PathDataset
 
 from dp_cgans.embeddings import ProjectionType, WalkerType, log, create_projection, project, create_random_walker, walk
 
 
-def embed(data: str, model_path: str, dim: int, verbose: bool = True, projection_type: ProjectionType = ProjectionType.OWL2VECSTAR, bidirectional_taxonomy: bool = False, include_literals: bool = False, only_taxonomy: bool = False, use_taxonomy: bool = True, relations: List[str] = None, walker_type: WalkerType = WalkerType.DEEPWALK, num_walks: int = 10, walk_length: int = 10, outfile: any = None, workers: int = 4, alpha: float = 0.1, p: float = 1., q: float = 1., epochs: int = 10, window: int = 5, min_count: int = 1) -> Word2Vec:
+def embed(data: str, model_path: str, dim: int, verbose: bool = True, projection_type: ProjectionType = ProjectionType.OWL2VECSTAR, bidirectional_taxonomy: bool = False, include_literals: bool = False, only_taxonomy: bool = False, use_taxonomy: bool = True, relations: List[str] = None, walker_type: WalkerType = WalkerType.DEEPWALK, num_walks: int = 10, walk_length: int = 10, outfile: any = "walks.txt", workers: int = 4, alpha: float = 0.1, p: float = 1., q: float = 1., epochs: int = 10, window: int = 5, min_count: int = 1, txt: str = None) -> Word2Vec:
     """
     Build an Ontology Embedding Model by:
     1.  Projecting the given Semantic Ontology Language dataset
@@ -65,8 +69,54 @@ def embed(data: str, model_path: str, dim: int, verbose: bool = True, projection
     log(text=f'💾️  Saving the model to {model_path}...', verbose=verbose)
     model.save(model_path)
 
+    if txt is not None:
+        log(text=f'💾️  Saving the model as text to {txt}...', verbose=verbose)
+        model.wv.save_word2vec_format(txt, binary=False)
+
     log(text=f'✅️  The ontology dataset has been successfully embedded!', verbose=verbose)
     return model
+
+
+def embed_p2(walk_file: str, model_path: str, dim: int, verbose: bool = True, epochs: int = 10, window: int = 5, min_count: int = 1, txt: str = None):
+    sentences = LineSentence(walk_file)
+    log(text=f'🏗️  Training the model...', verbose=verbose)
+    model = Word2Vec(sentences=sentences, vector_size=dim, epochs=epochs, window=window, min_count=min_count)
+
+    log(text=f'💾️  Saving the model to {model_path}...', verbose=verbose)
+    model.save(model_path)
+
+    if txt is not None:
+        log(text=f'💾️  Saving the model as text to {txt}...', verbose=verbose)
+        model.wv.save_word2vec_format(txt, binary=False)
+
+    log(text=f'✅️  The ontology dataset has been successfully embedded!', verbose=verbose)
+    return model
+
+
+def embed_alt(directory, config):
+    nltk.download('punkt')
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    gensim_model = owl2vec_star.owl2vec_star.extract_owl2vec_model(None, config, True, True, True)
+    gensim_model.save(os.path.join(directory, 'ontology.embeddings'))
+
+    gensim_model.wv.save_word2vec_format(os.path.join(directory, "ontology.embeddings.txt"), binary=False)
+
+
+def check(embedding):
+    model = KeyedVectors.load(embedding, mmap="r")
+    wv = model.wv
+
+    word = "http://www.orpha.net/ORDO/Orphanet_556985"
+    vector = wv[word]
+    log(f"Vector for {word} is {vector}", True)
+
+    result1 = wv.most_similar(positive=[word])
+    log(f"Result1: {result1}", True)
+
+    result2 = wv.most_similar_cosmul(positive=[word])
+    log(f"Result2: {result2}", True)
 
 
 def load_embedding(model_path: str) -> Word2Vec:
