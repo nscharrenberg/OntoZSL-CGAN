@@ -1,4 +1,10 @@
+import os
+from datetime import datetime
+
 import mowl
+
+from dp_cgans.onto_dp_cgan_init import ONTO_DP_CGAN
+from dp_cgans.ontology_embedding import OntologyEmbedding
 
 mowl.init_jvm("5g")
 import glob
@@ -16,6 +22,7 @@ from dp_cgans.preprocess.dataset import create_training_and_test_dataset, genera
     generate_hpo_ordo_dictionaries
 from dp_cgans.preprocess.utils import show_distribution
 from dp_cgans.embeddings.embed import embed_alt, check, embed_p2
+import codecs
 
 cli = typer.Typer()
 
@@ -146,6 +153,25 @@ def cli_embed(
                      min_count=min_count, txt=txt)
 
 
+@cli.command('recode')
+def cli_change_encoding(
+    file: str = typer.Option("file.txt", help="file to change"),
+    target: str = typer.Option("target.txt", help="newly encoded file"),
+    decoding: str = typer.Option("ansi", help="The type of encoding that was used on the file"),
+    encoding: str = typer.Option("utf-8", help="The encoding type to convert the file to"),
+    verbose: bool = typer.Option(False, help="If True, then intermediate console message will be displayed to indicate "
+                                          "progress."),
+):
+    blockSize = 1048576
+    with codecs.open(file, "r", encoding="mbcs") as sourceFile:
+        with codecs.open(target, "w", encoding="UTF-8") as targetFile:
+            while True:
+                contents = sourceFile.read(blockSize)
+                if not contents:
+                    break
+                targetFile.write(contents)
+
+
 @cli.command("embed3")
 def cli_embedp2(
         walker: str = typer.Option("walks.txt", help="Path to where the walker should be, or is, stored (.txt)"),
@@ -248,6 +274,66 @@ def cli_dict(
         verbose: bool = typer.Option(True, help="Display logs"),
 ):
     check(file)
+
+
+@cli.command("onto")
+def cli_ontology():
+    generated_files_path = '../persistent/model'
+    if not os.path.exists(generated_files_path):
+        os.makedirs(generated_files_path)
+
+    tabular_data = pd.read_csv("C:\\Users\\NScha\\OneDrive\\Documenten\\Thesis\\OntoZSL-DPCGAN\\resources\\ontologies\\patient_data\\seen_patient_data.csv", header=0)
+
+    onto_embedding = OntologyEmbedding(
+        embedding_path="C:\\Users\\NScha\\OneDrive\\Documenten\\Thesis\\OntoZSL-DPCGAN\\resources\\ontologies\\embedding\\embedding.model",
+        embedding_size=10,
+        hp_dict_fn="C:\\Users\\NScha\\OneDrive\\Documenten\\Thesis\\OntoZSL-DPCGAN\\resources\\ontologies\\dictionary\\HPO.dict",
+        rd_dict_fn="C:\\Users\\NScha\\OneDrive\\Documenten\\Thesis\\OntoZSL-DPCGAN\\resources\\ontologies\\dictionary\\ORDO.dict")
+
+    epochs = 10
+    model = ONTO_DP_CGAN(
+        embedding=onto_embedding,
+        log_file_path=generated_files_path,
+        epochs=epochs,
+        batch_size=500,
+        log_frequency=True,
+        verbose=True,
+        noise_dim=100,
+        generator_dim=(128, 128, 128),
+        discriminator_dim=(128, 128, 128),
+        generator_lr=2e-4,
+        discriminator_lr=2e-4,
+        discriminator_steps=5,
+        private=False,
+    )
+
+    print(f'Start model training, for {epochs} epochs')
+    model.fit(tabular_data)
+
+    now = datetime.now()
+    current_time = now.strftime("%Y_%m_%d_%H_%M_%S")
+    print('Training finished, saving the model')
+    # Saving the model for future sampling
+    model.save(f'../persistent/model/{current_time}_{epochs}_epochs_onto_dp_cgans_model.pkl')
+
+    # Loading the list of unseen RDs for ZSL sampling
+    unseen_file = "C:\\Users\\NScha\\OneDrive\\Documenten\\Thesis\\OntoZSL-DPCGAN\\resources\\ontologies\\patient_data\\unseen_rare_diseases.txt"
+    picked_unseen_rds = []
+    with open(unseen_file) as uf:
+        for rd in uf:
+            picked_unseen_rds.append(rd.strip())
+
+    # Sample the generated synthetic data
+    nb_rows = 100
+    fn = os.path.join(generated_files_path, f'{current_time}_{epochs}_epochs_seen_sample_{nb_rows}_rows.csv')
+    print(f'Sampling {nb_rows} seen rows')
+    model.sample(nb_rows).to_csv(fn)
+
+    # ZSL sampling (unseen embeddings)
+    if len(picked_unseen_rds) > 0:
+        fn = os.path.join(generated_files_path, f'{current_time}_{epochs}_epochs_unseen_sample_{nb_rows}_rows.csv')
+        print(f'Sampling {nb_rows} unseen rows')
+        model.sample(nb_rows, unseen_rds=picked_unseen_rds).to_csv(fn)
 
 
 if __name__ == "__main__":

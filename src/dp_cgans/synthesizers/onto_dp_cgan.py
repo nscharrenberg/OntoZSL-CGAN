@@ -2,7 +2,8 @@
 # pos_weight in BCEWithLogitsLoss model #
 # sigma = 5 #
 # delta = 2e-6 #
-
+import math
+import random
 import warnings
 
 import numpy as np
@@ -15,6 +16,7 @@ from torch.nn import BatchNorm1d, Dropout, LeakyReLU, Linear, Module, ReLU, Sequ
 
 from dp_cgans.data_sampler import DataSampler
 from dp_cgans.data_transformer import DataTransformer
+from dp_cgans.onto_data_sampler import ONTODataSampler
 from dp_cgans.synthesizers.base import BaseSynthesizer
 
 import scipy.stats
@@ -83,9 +85,9 @@ class Residual(Module):
 
 class Generator(Module):
 
-    def __init__(self, embedding_dim, generator_dim, data_dim):
+    def __init__(self, input_dim, generator_dim, data_dim):
         super(Generator, self).__init__()
-        dim = embedding_dim
+        dim = input_dim
         seq = []
         for item in list(generator_dim):
             seq += [Residual(dim, item)]
@@ -98,7 +100,7 @@ class Generator(Module):
         return data
 
 
-class ONTOCGANSynthesizer(BaseSynthesizer):
+class ONTODPCGANSynthesizer(BaseSynthesizer):
     """Conditional Table GAN Synthesizer.
 
     This is the core class of the CTGAN project, where the different components
@@ -144,7 +146,7 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
             Defaults to ``True``.
     """
 
-    def __init__(self, embeddings_fn, embedding_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
+    def __init__(self, log_file_path, embedding=None, noise_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
                  generator_lr=2e-4, generator_decay=1e-6, discriminator_lr=2e-4,
                  discriminator_decay=1e-6, batch_size=500, discriminator_steps=1,
                  log_frequency=True, verbose=False, epochs=300, pac=10, cuda=True, private=False,
@@ -152,8 +154,11 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
 
         assert batch_size % 2 == 0
 
-        self._embeddings_fn = embeddings_fn
-        self._embedding_dim = embedding_dim
+        self._embedding = embedding
+        self._noise_dim = noise_dim
+
+        self._log_file_path = log_file_path
+
         self._generator_dim = generator_dim
         self._discriminator_dim = discriminator_dim
 
@@ -178,6 +183,9 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
             device = cuda
         else:
             device = 'cuda'
+
+        if self._verbose:
+            print(f'Using {device}')
 
         self._device = torch.device(device)
 
@@ -263,9 +271,9 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
 
     def _cond_loss_pair(self, data, c_pair, m_pair):
 
-        m_pair = m_pair.detach().numpy()
+        # m_pair = m_pair.detach().numpy()
         output_info_all_columns = self._transformer.output_info_list
-        loss = np.zeros((len(data) * int((len(m_pair[0]) * (len(m_pair[0]) - 1)) / 2), len(m_pair[0])))
+        loss = torch.zeros((len(data) * int((m_pair.size()[1] * (m_pair.size()[1] - 1)) / 2), m_pair.size()[1]))
         st_primary = 0
         st_primary_c = 0
         cnt = 0
@@ -297,17 +305,17 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
 
                                 real_data_labels = torch.cat(
                                     [data[:, st_primary:ed_primary], data[:, st_secondary:ed_secondary]], dim=1)
-                                class_counts = real_data_labels.detach().numpy().sum(axis=0)
+                                class_counts = real_data_labels.sum(axis=0)
 
-                                pos_weights = np.ones_like(class_counts)
-                                neg_counts = [len(data) - pos_count for pos_count in class_counts]
-                                for cdx, (pos_count, neg_count) in enumerate(zip(class_counts, neg_counts)):
-                                    pos_weights[cdx] = neg_count / (pos_count + 1e-5)
+                                # pos_weights = torch.ones_like(class_counts)
+                                # neg_counts = [len(data)-pos_count for pos_count in class_counts]
+                                # for cdx, (pos_count, neg_count) in enumerate(zip(class_counts,  neg_counts)):
+                                #     pos_weights[cdx] = neg_count / (pos_count + 1e-5)
 
-                                torch_pos_weights = torch.as_tensor(pos_weights, dtype=torch.float)
+                                # torch_pos_weights = torch.as_tensor(pos_weights, dtype=torch.float)
+                                # print(pos_weights)
 
-                                criterion = BCEWithLogitsLoss(reduction='none',
-                                                              pos_weight=torch_pos_weights)  # , pos_weight=pos_weights)
+                                criterion = BCEWithLogitsLoss(reduction='none')  # , pos_weight=pos_weights)
                                 calculate_loss = criterion(
                                     torch.cat([data[:, st_primary:ed_primary], data[:, st_secondary:ed_secondary]],
                                               dim=1),
@@ -316,18 +324,12 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                                 )
 
                                 # calculate_loss = calculate_loss.detach().numpy()
-                                # loss[cnt * len(data):(cnt + 1) * len(data), cnt_primary] = calculate_loss[:,
-                                #                                                            :span_info_primary.dim].sum(
-                                #     axis=1) * m_pair[:, cnt_primary]
-                                # loss[cnt * len(data):(cnt + 1) * len(data), cnt_secondary] = calculate_loss[:,
-                                #                                                              span_info_primary.dim:].sum(
-                                #     axis=1) * m_pair[:, cnt_secondary]
-
-                                calculate_loss = calculate_loss.detach().numpy()
-                                loss[cnt * len(data):(cnt + 1) * len(data), cnt_primary] = np.sum(
-                                    calculate_loss[:, :span_info_primary.dim], axis=1) * m_pair[:, cnt_primary]
-                                loss[cnt * len(data):(cnt + 1) * len(data), cnt_secondary] = np.sum(
-                                    calculate_loss[:, span_info_primary.dim:], axis=1) * m_pair[:, cnt_secondary]
+                                loss[cnt * len(data):(cnt + 1) * len(data), cnt_primary] = calculate_loss[:,
+                                                                                           :span_info_primary.dim].sum(
+                                    axis=1) * m_pair[:, cnt_primary]
+                                loss[cnt * len(data):(cnt + 1) * len(data), cnt_secondary] = calculate_loss[:,
+                                                                                             span_info_primary.dim:].sum(
+                                    axis=1) * m_pair[:, cnt_secondary]
 
                                 st_secondary = ed_secondary
                                 st_secondary_c = ed_secondary_c
@@ -397,27 +399,39 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                 DeprecationWarning
             )
 
+        full_transformer = DataTransformer()
+        full_transformer.fit(train_data, discrete_columns)
+        train_data_full = full_transformer.transform(train_data)
+
+        rds = train_data.iloc[:, 0].values
+        _, idx = np.unique(rds, return_index=True)
+        rds = rds[np.sort(idx)]
+
+        self._data_sampler = ONTODataSampler(
+            train_data_full,
+            rds,
+            full_transformer.output_info_list,
+            self._log_frequency,
+            self._embedding
+        )
+
+        train_data.drop(columns=train_data.columns[0], axis=1, inplace=True)
+
         self._transformer = DataTransformer()
         self._transformer.fit(train_data, discrete_columns)
 
         train_data = self._transformer.transform(train_data)
 
-        self._data_sampler = DataSampler(
-            train_data,
-            self._embeddings_fn,
-            self._transformer.output_info_list,
-            self._log_frequency)
-
         data_dim = self._transformer.output_dimensions
 
         self._generator = Generator(
-            self._embedding_dim + self._data_sampler.dim_cond_vec(),  # number of categories in the whole dataset.
+            self._noise_dim + self._embedding.embed_size,  # number of categories in the whole dataset.
             self._generator_dim,
             data_dim
         ).to(self._device)
 
         self._discriminator = Discriminator(
-            data_dim + self._data_sampler.dim_cond_vec(),
+            data_dim + self._embedding.embed_size,
             self._discriminator_dim,
             pac=self.pac
         ).to(self._device)
@@ -432,7 +446,7 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
             betas=(0.5, 0.9), weight_decay=self._discriminator_decay
         )
 
-        mean = torch.zeros(self._batch_size, self._embedding_dim, device=self._device)
+        mean = torch.zeros(self._batch_size, self._noise_dim, device=self._device)
         std = mean + 1
 
         steps_per_epoch = max(len(train_data) // self._batch_size, 1)
@@ -470,17 +484,19 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                                 c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = None, None, None, None
                                 real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1, opt_pair_1)
                             else:
-                                c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
-                                c_pair_1 = torch.from_numpy(c_pair_1).to(self._device)
-                                m_pair_1 = torch.from_numpy(m_pair_1).to(self._device)
-                                fakez = torch.cat([fakez, c_pair_1], dim=1)
+                                fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1, batch_size=self._batch_size)
+                                fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
 
                                 perm = np.arange(self._batch_size)
                                 np.random.shuffle(perm)
+                                c_pair_2 = c_pair_1[perm]
+                                fakez = torch.cat([fakez, fake_embeddings], dim=1)
 
                                 real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1[perm],
                                                                            opt_pair_1[perm])
-                                c_pair_2 = c_pair_1[perm]
+                                real_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_2,
+                                                                                             batch_size=self._batch_size)
+                                real_embeddings = torch.from_numpy(real_embeddings).to(self._device)
 
                             fake = self._generator(
                                 fakez)  # categories (unique value count) + continuous (1+n_components)
@@ -492,8 +508,8 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                             # fake_cat = torch.cat([fakeact, c1], dim=1)
                             # real_cat = torch.cat([real, c2], dim=1)
                             if col_pair_1 is not None:
-                                fake_cat = torch.cat([fakeact, c_pair_1], dim=1)
-                                real_cat = torch.cat([real, c_pair_2], dim=1)
+                                fake_cat = torch.cat([fakeact, fake_embeddings], dim=1)
+                                real_cat = torch.cat([real, real_embeddings], dim=1)
                             else:
                                 real_cat = real
                                 fake_cat = fake
@@ -505,7 +521,7 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
 
                             #### DP ####
                             if self.private:
-                                sigma = 5
+                                sigma = 1
                                 weight_clip = 0.01
 
                                 if sigma is not None:
@@ -549,9 +565,11 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                         else:
                             c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
 
+                            fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1, batch_size=self._batch_size)
+                            fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
                             c_pair_1 = torch.from_numpy(c_pair_1).to(self._device)
                             m_pair_1 = torch.from_numpy(m_pair_1).to(self._device)
-                            fakez = torch.cat([fakez, c_pair_1], dim=1)
+                            fakez = torch.cat([fakez, fake_embeddings], dim=1)
 
                         fake = self._generator(fakez)
                         fakeact = self._apply_activate(fake)
@@ -569,7 +587,7 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                         # loss_g = -torch.mean(y_fake) + cross_entropy# + rules_penalty
 
                         if c_pair_1 is not None:
-                            y_fake = self._discriminator(torch.cat([fakeact, c_pair_1], dim=1))
+                            y_fake = self._discriminator(torch.cat([fakeact, fake_embeddings], dim=1))
                         else:
                             y_fake = self._discriminator(fakeact)
 
@@ -618,10 +636,8 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
                             epsilon = np.nan
 
                     ######## ADDED ########
-                    if i % 100 == 0:
-                        self.sample(len(train_data)).to_csv("sample_%s.csv" % str(i))
 
-    def sample(self, n, condition_column=None, condition_value=None):
+    def sample(self, n, unseen_rds=[], sort=True):
         """Sample data similar to the training data.
 
         Choosing a condition_column and condition_value will increase the probability of the
@@ -637,32 +653,44 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
         Returns:
             numpy.ndarray or pandas.DataFrame
         """
-        if condition_column is not None and condition_value is not None:
-            condition_info = self._transformer.convert_column_name_value_to_id(
-                condition_column, condition_value)
-            global_condition_vec = self._data_sampler.generate_cond_from_condition_column_info(
-                condition_info, self._batch_size)
-        else:
-            global_condition_vec = None
-
         steps = n // self._batch_size + 1
         data = []
+        sampled_rds = []
+
+        if len(unseen_rds) > 0:
+            # DUplicate the rds to match batch_size
+            unseen_rds = [rd for rd in unseen_rds for repetitions in
+                          range(math.ceil(self._batch_size / len(unseen_rds)))]
+            unseen_rds = unseen_rds[:self._batch_size]
+
         for i in range(steps):
-            mean = torch.zeros(self._batch_size, self._embedding_dim)
+            mean = torch.zeros(self._batch_size, self._noise_dim)
             std = mean + 1
             fakez = torch.normal(mean=mean, std=std).to(self._device)
 
-            if global_condition_vec is not None:
-                condvec = global_condition_vec.copy()
+            if len(unseen_rds) > 0:
+                # Note: unsure if shuffle is useful here
+                random.shuffle(unseen_rds)
+                # Getting ontology embeddings from the list of unseen RDs
+                fake_embeddings = self._data_sampler.get_rd_embeds(unseen_rds)
+                fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
+
+                fakez = torch.cat([fakez, fake_embeddings], dim=1)
+                sampled_rds += unseen_rds
             else:
                 condvec = self._data_sampler.sample_original_condvec(self._batch_size)
 
-            if condvec is None:
-                pass
-            else:
-                c1 = condvec
-                c1 = torch.from_numpy(c1).to(self._device)
-                fakez = torch.cat([fakez, c1], dim=1)
+                if condvec is None:
+                    pass
+                else:
+                    c1, m1 = condvec
+                    # Getting ontology embeddings
+                    rds = self._data_sampler.get_rds(cat_ids=c1, batch_size=self._batch_size)
+                    fake_embeddings = self._data_sampler.get_rd_embeds(rds)
+                    fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
+
+                    fakez = torch.cat([fakez, fake_embeddings], dim=1)
+                    sampled_rds += rds
 
             fake = self._generator(fakez)
             fakeact = self._apply_activate(fake)
@@ -671,7 +699,13 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
         data = np.concatenate(data, axis=0)
         data = data[:n]
 
-        return self._transformer.inverse_transform(data)
+        sampled_data = self._transformer.inverse_transform(data)
+        # Inserting the rare_disease column of the RDs used for embeddings
+        sampled_data.insert(loc=0, column='rare_disease', value=sampled_rds[:n])
+        if sort:
+            sampled_data = sampled_data.sort_values(by=['rare_disease'])
+
+        return sampled_data
 
     def set_device(self, device):
         self._device = device
@@ -680,7 +714,7 @@ class ONTOCGANSynthesizer(BaseSynthesizer):
 
     def xai_discriminator(self, data_samples):
 
-        # for exlain AI (SHAP) the single row from the pd.DataFrame needs to be transformed. 
+        # for exlain AI (SHAP) the single row from the pd.DataFrame needs to be transformed.
         data_samples = pd.DataFrame(data_samples).T
 
         condvec_pair = self._data_sampler.sample_condvec_pair(len(data_samples))

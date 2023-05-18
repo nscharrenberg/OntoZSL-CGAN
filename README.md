@@ -304,3 +304,31 @@ dp-cgans csv_to_txt --source {path_to_the_csv_file} --target {directory_path_to_
 So you can use Protege to merge perform the above merging steps and then save the new ontology dataset as a turtle file (ttl), an rdf/xml file (.rdf/.owl) and owl/xml file (.owx/.owl) 
 **Note**: Later-on we'll only require 1 file-type to be exported manually, or preferably none at all and it all being done automatically.
 **Note**: You'll only need to save a copy of this in turtle (.ttl) format if you'd like to import it into a sparQL database such as Apache Jena Fuseki.
+
+
+#### Setup SPARQL Server
+**Note**: We'll use Apache Jena Fuseki as our SPARQL server. You are however, not limited to using other alternatives.
+**Note**: Fuseki may throw a `java heap space` exception when using an `in-memory` database. A persistent one is therefore recommended.
+
+1. Setup Apache Jena Fuseki as per their [documentation](https://jena.apache.org/documentation/fuseki2/).
+2. Create a new Database and upload the merged `.ttl` dataset to SPARQl. )
+3. To split the data up into training and test data, we can run the following command:
+```bash
+dp-cgans split --url {url_to_sparql_server} --target {directory_to_save_seen_and_unseen_data_to} 
+```
+`{url_to_sparql_server}` could be: `http://localhost:3030/hoom/query` (assuming your databse is name `hoom`).
+`{directory_to_save_seen_and_unseen_data_to}` could be: `~/projects/dataset/split`.
+
+#### Generate Synthetic Phonetic Patient Data
+Run the following command:
+```bash
+dp-cgans genrd --file {path_to_hpo_csv} --seen {path_to_seen_pkl} --unseen {path_to_unseen_pkl} --directory {directory_to_save_patient_data}
+```
+`path_to_hpo_csv` could be `~/projects/dataset/hpo.csv`, `path_to_seen_pkl` could be `~/projects/dataset/seen.pkl`, `path_to_unseen` could be `~/projects/dataset/unseen.pkl`, `directory_to_save_patient_data` could be `~/projects/datasets/data`.
+
+#### Generate Phonetic Dictionary
+Run the following command
+```bash
+dp-cgans dict --file {path_to_hpo_csv} --directory {directory_to_save_dictionaries_to}
+```
+
