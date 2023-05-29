@@ -1,4 +1,7 @@
 import mowl
+
+from dp_cgans.ontology.zsl.classifier import ZeroShotLearning
+
 mowl.init_jvm("5g")
 
 from dp_cgans.ontology import Preprocessor
@@ -72,10 +75,18 @@ def cli_preprocess(
 
 
 @cli.command("embed")
-def cli_preprocess(
+def cli_embed(
     config: str = typer.Option("configs/embedding/config.json", help="The path location of the configuration file."),
 ):
     pipeline = Embedding(config)
+    pipeline.start()
+
+
+@cli.command("zsl")
+def cli_zsl(
+    config: str = typer.Option("configs/zsl/config.json", help="The path location of the configuration file."),
+):
+    pipeline = ZeroShotLearning(config)
     pipeline.start()
 
 

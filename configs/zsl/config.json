@@ -1,0 +1,15 @@
+{
+  "verbose": true,
+  "dataset": {
+    "files": {
+      "directory": "resources/29052023/patient_data",
+      "seen": "unseen.csv",
+      "unseen": "seen.csv"
+    },
+    "class_header": "rare_disease"
+  },
+  "evaluate": {
+    "confusion_matrix": true,
+    "silhouette": true
+  }
+}

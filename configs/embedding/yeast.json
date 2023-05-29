@@ -1,0 +1,44 @@
+{
+  "verbose": true,
+  "evaluate": true,
+  "seed": 42,
+  "model": {
+    "directory": "../datasets/embeddings",
+    "file": "model.embedding"
+  },
+  "load_embedding": false,
+  "dataset_directory": "../datasets/ppi_yeast",
+  "datasets": {
+    "training": "ontology.owl",
+    "testing": "test.owl",
+    "validation": "valid.owl"
+  },
+  "projection": {
+    "type": "owl2vecstar",
+    "bidirectional_taxonomy": false,
+    "include_literals": false,
+    "only_taxonomy": false,
+    "use_taxonomy": false,
+    "relations": null
+  },
+  "embedding": {
+    "type": "deepwalk",
+    "num_walks": 15,
+    "walk_length": 6,
+    "workers": 4,
+    "alpha": 0.01,
+    "p": 10,
+    "q": 0.1,
+    "outfile": {
+      "directory": "../datasets/embeddings/out",
+      "file": "walks.txt"
+    }
+  },
+  "word2vec": {
+    "epochs": 15,
+    "dimensions": 25,
+    "window": 4,
+    "min_count": 3,
+    "text_file": "model.txt"
+  }
+}

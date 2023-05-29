@@ -1,6 +1,7 @@
 import codecs
 import os
 
+import pandas as pd
 import requests
 
 from dp_cgans.utils.logging import log
@@ -95,3 +96,17 @@ def get_or_create_directory(path: str, error: bool = False):
         os.makedirs(path)
 
     return path
+
+
+def load_csv(path: str, class_header: str, verbose: bool = False):
+    log(f"Reading \"Seen\" dataset...", verbose=verbose)
+
+    if not os.path.isfile(path):
+        raise IOError(f"The file located at \"{path}\" could not be found")
+
+    seen_data = pd.read_csv(path)
+
+    X = seen_data.drop(class_header, axis=1)
+    y = seen_data[class_header]
+
+    return X, y
