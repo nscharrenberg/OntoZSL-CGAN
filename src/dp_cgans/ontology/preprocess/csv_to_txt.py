@@ -1,9 +1,7 @@
-import os
-
 import pandas as pd
 
-from dp_cgans.preprocess.preprocessing_enums import Relation, HPOHeaders
-from dp_cgans.preprocess.utils import normalize_string, get_diagnostic_criteria_association_classes, \
+from dp_cgans.ontology.preprocess.preprocessing_enums import Relation, HPOHeaders
+from dp_cgans.ontology.preprocess.utils import normalize_string, get_diagnostic_criteria_association_classes, \
     get_frequency_association_classes, get_association_subclass, get_frequency_association_codes, get_association_name
 from dp_cgans.utils.logging import log
 

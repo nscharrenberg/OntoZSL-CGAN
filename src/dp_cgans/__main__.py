@@ -1,15 +1,13 @@
 import mowl
-
-from dp_cgans.utils import Config
-
 mowl.init_jvm("5g")
+
+from dp_cgans.ontology import Preprocessor
+from dp_cgans.ontology.embedding import Embedding
 
 import pandas as pd
 import pkg_resources
 import typer
 from dp_cgans import DP_CGAN
-
-from dp_cgans.preprocess import Preprocessor
 
 cli = typer.Typer()
 
@@ -70,6 +68,14 @@ def cli_preprocess(
     config: str = typer.Option("configs/preprocessing/config.json", help="The path location of the configuration file."),
 ):
     pipeline = Preprocessor(config)
+    pipeline.start()
+
+
+@cli.command("embed")
+def cli_preprocess(
+    config: str = typer.Option("configs/embedding/config.json", help="The path location of the configuration file."),
+):
+    pipeline = Embedding(config)
     pipeline.start()
 
 

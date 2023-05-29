@@ -1,24 +1,24 @@
 {
   "verbose": true,
-  "evaluate": true,
+  "evaluate": false,
   "seed": 42,
   "model": {
-    "directory": "../datasets/embeddings",
-    "file": "ppi_yeast.embedding"
+    "directory": "resources/29052023/embedding/model",
+    "file": "model.embedding"
   },
   "load_embedding": false,
-  "dataset_directory": "../datasets/ppi_yeast",
+  "dataset_directory": "resources/29052023/merged",
   "datasets": {
-    "training": "ontology.owl",
-    "testing": "test.owl",
-    "validation": "valid.owl"
+    "training": "merged.rdf",
+    "testing": null,
+    "validation": null
   },
   "projection": {
     "type": "owl2vecstar",
     "bidirectional_taxonomy": false,
     "include_literals": false,
     "only_taxonomy": false,
-    "use_taxonomy": true,
+    "use_taxonomy": false,
     "relations": null
   },
   "embedding": {
@@ -30,13 +30,8 @@
     "p": 10,
     "q": 0.1,
     "outfile": {
-      "directory": "../datasets/embeddings/out",
+      "directory": "resources/29052023/embedding/out",
       "file": "walks.txt"
-    },
-    "pykeen": {
-      "dimension": 50,
-      "epochs": 10,
-      "batch_size": 32
     }
   },
   "word2vec": {
@@ -44,6 +39,6 @@
     "dimensions": 25,
     "window": 4,
     "min_count": 3,
-    "text_file": "ppi_yeast.txt"
+    "text_file": "model.txt"
   }
 }

@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dp_cgans.preprocess.preprocessing_enums import HPOHeaders
+from dp_cgans.ontology.preprocess.preprocessing_enums import HPOHeaders
 
 
 def get_association_name(code: str, frequency: str, id: str, orphanet_entities: dict, hpo_entities: dict) -> str:

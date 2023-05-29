@@ -9,11 +9,11 @@ import pandas as pd
 import rdflib
 from rdflib import Namespace
 
-from dp_cgans.preprocess.csv_to_txt import read_dataset, get_sub_class_of_parents, get_other_properties, get_parents, \
+from dp_cgans.ontology.preprocess.csv_to_txt import read_dataset, get_sub_class_of_parents, get_other_properties, get_parents, \
     get_entities, get_relations, write_to_file
-from dp_cgans.preprocess.preprocessing_enums import HPOTags, HPOHeaders
-from dp_cgans.preprocess.sparql import build_dictionary, populate_rd_sets
-from dp_cgans.preprocess.utils import get_headers, find_xml, get_diagnostic_criteria_entities, \
+from dp_cgans.ontology.preprocess.preprocessing_enums import HPOTags, HPOHeaders
+from dp_cgans.ontology.preprocess.sparql import build_dictionary, populate_rd_sets
+from dp_cgans.ontology.preprocess.utils import get_headers, find_xml, get_diagnostic_criteria_entities, \
     get_frequency_association_entities, get_orpha_iri, get_frequency_distribution
 from dp_cgans.utils import Config
 from dp_cgans.utils.logging import log, LogLevel
