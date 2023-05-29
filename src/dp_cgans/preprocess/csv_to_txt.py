@@ -2,75 +2,10 @@ import os
 
 import pandas as pd
 
-from dp_cgans.embeddings import log
-from dp_cgans.preprocess import HPOHeaders, Relation
-from dp_cgans.preprocess.utils import normalize_string, get_association_subclass, get_association_name, \
-    get_frequency_association_codes, get_frequency_association_classes, get_frequency_association_entities, \
-    get_diagnostic_criteria_entities, get_diagnostic_criteria_association_classes
-
-
-def csv_to_txt(file_path: str, destination_path: str, verbose: bool = True):
-    log(text=f'🔄️  About to start Preprocessing', verbose=verbose)
-
-    if not os.path.exists(file_path):
-        log(text=f'❌️The file {file_path} does not exists.', verbose=True)
-        return
-
-    if not os.path.exists(destination_path):
-        log(text=f'🗂️  Destination path does not exist, creating this path...', verbose=verbose)
-        os.makedirs(destination_path)
-
-    log(text=f'🔄️  Reading CSV from {file_path}', verbose=verbose)
-    df = pd.read_csv(file_path, dtype="object")
-    dataset = read_dataset(df)
-    df = dataset['df']
-
-    association_entitites = dataset['association_entities']
-    diagnostic_criteria_entities = get_diagnostic_criteria_entities()
-    frequency_association_entities = get_frequency_association_entities()
-
-    hpo_entities = dataset['hpo_entities']
-    orpha_entities = dataset['orpha_entities']
-
-    has_object_triples = dataset['has_object_triples']
-    has_subject_triples = dataset['has_subject_triples']
-    has_frequency_triples = dataset['has_frequency_triples']
-    has_diagnostic_criteria_triples = dataset['has_diagnostic_criteria_triples']
-
-    log(text=f'🔄️  Instantiating Triples...', verbose=verbose)
-    triples = []
-    triples_names = []
-    entities = []
-    entities_names = []
-    relations = []
-
-    sub_class_of_parents_dict = get_sub_class_of_parents(triples, triples_names, association_entitites,
-                                                         diagnostic_criteria_entities, frequency_association_entities,
-                                                         hpo_entities, orpha_entities, verbose)
-    triples = sub_class_of_parents_dict['triples']
-    triples_names = sub_class_of_parents_dict['triples_names']
-    entities_and_parent_class = sub_class_of_parents_dict['entities_and_parent_class']
-
-    other_properties_dict = get_other_properties(triples, triples_names, has_object_triples, has_subject_triples,
-                                                 has_frequency_triples, has_diagnostic_criteria_triples, hpo_entities,
-                                                 orpha_entities, frequency_association_entities,
-                                                 diagnostic_criteria_entities, association_entitites, verbose)
-    triples = other_properties_dict['triples']
-    triples_names = other_properties_dict['triples_names']
-
-    parents_dict = get_parents(entities, entities_names, entities_and_parent_class, verbose)
-    entities = parents_dict['entities']
-    entities_names = parents_dict['entities_names']
-
-    entities_dict = get_entities(entities, entities_names, association_entitites, diagnostic_criteria_entities,
-                                 frequency_association_entities, hpo_entities, orpha_entities, verbose)
-    entities = entities_dict['entities']
-    entities_names = entities_dict['entities_names']
-
-    relations_dict = get_relations(relations, verbose)
-    relations = relations_dict['relations']
-
-    write_to_file(destination_path, triples, triples_names, entities, entities_names, relations, verbose)
+from dp_cgans.preprocess.preprocessing_enums import Relation, HPOHeaders
+from dp_cgans.preprocess.utils import normalize_string, get_diagnostic_criteria_association_classes, \
+    get_frequency_association_classes, get_association_subclass, get_frequency_association_codes, get_association_name
+from dp_cgans.utils.logging import log
 
 
 def read_dataset(df: pd.DataFrame, verbose: bool = True) -> dict:
@@ -213,18 +148,11 @@ def get_relations(relations, verbose: bool = True):
     }
 
 
-def write_to_file(destination_path, triples, triples_names, entities, entities_names, relations, verbose: bool = True):
+def write_to_file(destination_path, lists_and_files: list, verbose: bool = True):
     log(text=f'🔄️  Writing files to "{destination_path}"...', verbose=verbose)
-    lists_and_files = [
-        (triples, "triples.txt"),
-        (triples_names, "triples_names.txt"),
-        (entities, "entities.dict"),
-        (entities_names, "entities_names.dict"),
-        (relations, "relations.dict")
-    ]
 
     for (l, n) in lists_and_files:
-        current_file_to_write = os.path.join(destination_path, n)
+        current_file_to_write = f"{destination_path}/{n}"
         log(text=f'🔄️ About to write "{current_file_to_write}"...', verbose=True)
         with open(current_file_to_write, "w") as f:
             for c in l:

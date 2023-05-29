@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from dp_cgans.preprocess.preprocessing_enums import HPOHeaders
+
 
 def get_association_name(code: str, frequency: str, id: str, orphanet_entities: dict, hpo_entities: dict) -> str:
     orphanet_entity = orphanet_entities.get(code)
@@ -103,3 +105,40 @@ def show_distribution(distributions):
     ax.legend()
 
     plt.show()
+
+
+def find_xml(row, source_tag, target_tag, field, text=True, attrib="id"):
+    """
+    Find sub-tag of a source-tag and place its value into the dictionary of the current rows data.
+    Args:
+        row: Data of the current row
+        source_tag: Parent Tag
+        target_tag: The Sub-tag to find
+        field: The field to place it as in the CSV file
+        text: If true, then the value of the tag is its inner text, otherwise its attribute (attrib) is taken.
+        attrib: If text is False, then the value of the attrib will be used to take the attribute.
+
+    Returns: the tag that was found
+
+    """
+    tag = source_tag.find(target_tag)
+    tag_v = None
+
+    if tag is not None:
+        if text:
+            tag_v = tag.text
+        elif len(tag.attrib) > 0:
+            tag_v = tag.attrib[attrib]
+
+    row[field] = tag_v if tag_v is not None else ""
+
+    return tag
+
+
+def get_headers():
+    """
+    Get a list of all the header names that should be in the xml file.
+    Returns: the array of header names
+
+    """
+    return HPOHeaders.values()
