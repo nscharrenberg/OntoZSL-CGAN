@@ -5,6 +5,8 @@ import numpy as np
 from dp_cgans.onto_base import OntoBaseTabularModel
 from dp_cgans.synthesizers.dp_cgan import DPCGANSynthesizer
 from dp_cgans.synthesizers.onto_dp_cgan import ONTODPCGANSynthesizer
+from dp_cgans.utils import Config
+from dp_cgans.utils.data_types import load_config
 
 
 class ONTODPCGANModel(OntoBaseTabularModel):
@@ -178,42 +180,22 @@ class ONTO_DP_CGAN(ONTODPCGANModel):
 
     _MODEL_CLASS = ONTODPCGANSynthesizer
 
-    def __init__(self, log_file_path, embedding=None,field_names=None, field_types=None, field_transformers=None,
-                 anonymize_fields=None, primary_key=None, constraints=None, table_metadata=None,
-                 noise_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
-                 generator_lr=2e-4, generator_decay=1e-6, discriminator_lr=2e-4,
-                 discriminator_decay=1e-6, batch_size=500, discriminator_steps=1,
-                 log_frequency=True, verbose=False, epochs=300, pac=10, cuda=True,
-                 rounding='auto', min_value='auto', max_value='auto', private=False):
+    def __init__(self, config: str or Config):
+        self._config = load_config(config)
+
         super().__init__(
-            field_names=field_names,
-            primary_key=primary_key,
-            field_types=field_types,
-            field_transformers=field_transformers,
-            anonymize_fields=anonymize_fields,
-            constraints=constraints,
-            table_metadata=table_metadata,
-            rounding=rounding,
-            max_value=max_value,
-            min_value=min_value
+            field_names=self._config.get_nested('dp_cgans', 'field_names'),
+            primary_key=self._config.get_nested('dp_cgans', 'primary_key'),
+            field_types=self._config.get_nested('dp_cgans', 'field_types'),
+            field_transformers=self._config.get_nested('dp_cgans', 'field_transformers'),
+            anonymize_fields=self._config.get_nested('dp_cgans', 'anonymize_fields'),
+            constraints=self._config.get_nested('dp_cgans', 'constraints'),
+            table_metadata=self._config.get_nested('dp_cgans', 'table_metadata'),
+            rounding=self._config.get_nested('dp_cgans', 'rounding'),
+            max_value=self._config.get_nested('dp_cgans', 'max_value'),
+            min_value=self._config.get_nested('dp_cgans', 'min_value')
         )
 
         self._model_kwargs = {
-            'embedding': embedding,
-            'noise_dim': noise_dim,
-            'log_file_path': log_file_path,
-            'generator_dim': generator_dim,
-            'discriminator_dim': discriminator_dim,
-            'generator_lr': generator_lr,
-            'generator_decay': generator_decay,
-            'discriminator_lr': discriminator_lr,
-            'discriminator_decay': discriminator_decay,
-            'batch_size': batch_size,
-            'discriminator_steps': discriminator_steps,
-            'log_frequency': log_frequency,
-            'verbose': verbose,
-            'epochs': epochs,
-            'pac': pac,
-            'cuda': cuda,
-            'private': private
+            'config': self._config
         }

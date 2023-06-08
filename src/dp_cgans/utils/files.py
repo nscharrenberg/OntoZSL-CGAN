@@ -76,6 +76,15 @@ def download(url: str, location_path: str, file_name: str = None, verbose: bool 
         raise Exception(f"Failed to download file from {url}. Status code: {req.status_code} with message: {req.text}")
 
 
+def create_path(directory: str, file_name: str, create: bool = True):
+    if file_name is None:
+        return None
+
+    get_or_create_directory(directory, error=not create)
+
+    return os.path.join(directory, file_name)
+
+
 def get_or_create_directory(path: str, error: bool = False):
     """
     Checks if the path exists or not. If it does not exist it'll either throw an exception or create the directory.

@@ -17,6 +17,8 @@ from torch.nn import BatchNorm1d, Dropout, LeakyReLU, Linear, Module, ReLU, Sequ
 from dp_cgans.data_sampler import DataSampler
 from dp_cgans.data_transformer import DataTransformer
 from dp_cgans.onto_data_sampler import ONTODataSampler
+from dp_cgans.ontology.embedding import OntologyEmbedding
+from dp_cgans.ontology.zsl.classifier import ZeroShotLearning
 from dp_cgans.synthesizers.base import BaseSynthesizer
 
 import scipy.stats
@@ -25,6 +27,8 @@ import scipy.stats
 from datetime import datetime
 from contextlib import redirect_stdout
 from dp_cgans.rdp_accountant import compute_rdp, get_privacy_spent
+from dp_cgans.utils import Config
+from dp_cgans.utils.data_types import load_config, tuplify
 
 
 class Discriminator(Module):
@@ -146,36 +150,30 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
             Defaults to ``True``.
     """
 
-    def __init__(self, log_file_path, embedding=None, noise_dim=128, generator_dim=(256, 256), discriminator_dim=(256, 256),
-                 generator_lr=2e-4, generator_decay=1e-6, discriminator_lr=2e-4,
-                 discriminator_decay=1e-6, batch_size=500, discriminator_steps=1,
-                 log_frequency=True, verbose=False, epochs=300, pac=10, cuda=True, private=False,
-                 conditional_columns=None):
+    def __init__(self, config: str or Config):
+        self._config = load_config(config)
 
-        assert batch_size % 2 == 0
+        self._batch_size = self._config.get_nested('dp_cgans', 'batch_size')
 
-        self._embedding = embedding
-        self._noise_dim = noise_dim
+        assert self._batch_size % 2 == 0
 
-        self._log_file_path = log_file_path
+        self._embedding_dim = self._config.get_nested('dp_cgans', 'embedding_dim')
+        self._generator_dim = tuplify(self._config.get_nested('dp_cgans', 'generator_dim'))
+        self._discriminator_dim = tuplify(self._config.get_nested('dp_cgans', 'discriminator_dim'))
 
-        self._generator_dim = generator_dim
-        self._discriminator_dim = discriminator_dim
+        self._generator_lr = self._config.get_nested('dp_cgans', 'generator_lr')
+        self._generator_decay = self._config.get_nested('dp_cgans', 'generator_decay')
+        self._discriminator_lr = self._config.get_nested('dp_cgans', 'discriminator_lr')
+        self._discriminator_decay = self._config.get_nested('dp_cgans', 'discriminator_decay')
 
-        self._generator_lr = generator_lr
-        self._generator_decay = generator_decay
-        self._discriminator_lr = discriminator_lr
-        self._discriminator_decay = discriminator_decay
+        self._discriminator_steps = self._config.get_nested('dp_cgans', 'discriminator_steps')
+        self._log_frequency = self._config.get_nested('dp_cgans', 'log_frequency')
+        self._verbose = self._config.get_nested('dp_cgans', 'verbose')
+        self._epochs = self._config.get_nested('dp_cgans', 'epochs')
+        self.pac = self._config.get_nested('dp_cgans', 'pac')
 
-        self._batch_size = batch_size
-        self._discriminator_steps = discriminator_steps
-        self._log_frequency = log_frequency
-        self._verbose = verbose
-        self._epochs = epochs
-        self.pac = pac
-
-        self.private = private
-        self.conditional_columns = conditional_columns
+        self.private = self._config.get_nested('dp_cgans', 'private')
+        cuda = self._config.get_nested('dp_cgans', 'cuda')
 
         if not cuda or not torch.cuda.is_available():
             device = 'cpu'
@@ -193,6 +191,10 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         self._data_sampler = None
         self._generator = None
         self._discriminator = None
+        self._zero_shot_classifier = None
+
+        self._embedding = OntologyEmbedding(self._config)
+        self._embedding.fit_or_load()
 
     @staticmethod
     def _gumbel_softmax(logits, tau=1, hard=False, eps=1e-10, dim=-1):
@@ -425,7 +427,7 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         data_dim = self._transformer.output_dimensions
 
         self._generator = Generator(
-            self._noise_dim + self._embedding.embed_size,  # number of categories in the whole dataset.
+            self._embedding_dim + self._embedding.embed_size,  # number of categories in the whole dataset.
             self._generator_dim,
             data_dim
         ).to(self._device)
@@ -446,7 +448,7 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
             betas=(0.5, 0.9), weight_decay=self._discriminator_decay
         )
 
-        mean = torch.zeros(self._batch_size, self._noise_dim, device=self._device)
+        mean = torch.zeros(self._batch_size, self._embedding_dim, device=self._device)
         std = mean + 1
 
         steps_per_epoch = max(len(train_data) // self._batch_size, 1)
@@ -664,7 +666,7 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
             unseen_rds = unseen_rds[:self._batch_size]
 
         for i in range(steps):
-            mean = torch.zeros(self._batch_size, self._noise_dim)
+            mean = torch.zeros(self._batch_size, self._embedding_dim)
             std = mean + 1
             fakez = torch.normal(mean=mean, std=std).to(self._device)
 

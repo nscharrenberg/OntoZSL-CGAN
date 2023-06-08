@@ -1,0 +1,88 @@
+{
+  "dp_cgans": {
+    "files": {
+      "directory": "resources/dp_cgans/20230608",
+      "input": "data/seen.csv",
+      "output": "data/generated.csv"
+    },
+    "field_names": null,
+    "field_types": null,
+    "field_transformers": null,
+    "anonymize_fields": null,
+    "primary_key": null,
+    "constraints": null,
+    "table_metadata": null,
+    "embedding_dim": 128,
+    "generator_dim": [128, 128, 128],
+    "discriminator_dim": [128, 128, 128],
+    "generator_lr": 2e-4,
+    "generator_decay": 1e-6,
+    "discriminator_lr": 2e-4,
+    "discriminator_decay": 1e-6,
+    "batch_size": 200,
+    "discriminator_steps": 1,
+    "log_frequency": true,
+    "verbose": true,
+    "epochs": 10,
+    "pac": 10,
+    "cuda": true,
+    "rounding": "auto",
+    "min_value": "auto",
+    "max_value": "auto",
+    "private": false,
+    "gen_size": 100
+  },
+  "embedding": {
+    "verbose": true,
+    "files": {
+      "directory": "resources/dp_cgans/20230608/embedding"
+    },
+    "model": {
+      "load": true,
+      "save": false,
+      "use_root": true,
+      "directory": "model",
+      "file": "model.embedding",
+      "save_key_vectors": true
+    },
+    "datasets": {
+      "use_root": true,
+      "directory": "dataset",
+      "training": "merged.rdf",
+      "testing": null,
+      "validation": null
+    },
+    "projection": {
+      "type": "owl2vecstar",
+      "bidirectional_taxonomy": false,
+      "include_literals": false,
+      "only_taxonomy": false,
+      "use_taxonomy": false,
+      "relations": null
+    },
+    "random_walks": {
+      "type": "deepwalk",
+      "num_walks": 15,
+      "walk_length": 6,
+      "workers": 4,
+      "alpha": 0.01,
+      "p": 10,
+      "q": 0.1,
+      "outfile": {
+        "use_root": true,
+        "directory": "random_walks",
+        "file": "out.txt"
+      }
+    },
+    "word2vec": {
+      "epochs": 15,
+      "dimensions": 25,
+      "window": 4,
+      "min_count": 3
+    },
+    "references": [
+      "resources/dp_cgans/20230608/embedding/dicts/HPO.dict",
+      "resources/dp_cgans/20230608/embedding/dicts/ORDO.dict"
+    ]
+  }
+}

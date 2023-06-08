@@ -3,19 +3,14 @@ from typing import List
 
 from gensim.models import Word2Vec
 from gensim.models.word2vec import LineSentence
-from mowl.corpus import extract_and_save_axiom_corpus
 from mowl.datasets import PathDataset
 from mowl.evaluation.rank_based import EmbeddingsRankBasedEvaluator
-from mowl.owlapi import OWLAPIAdapter
-from mowl.projection import Edge, TaxonomyWithRelationsProjector
+from mowl.projection import Edge
 from mowl.evaluation.base import CosineSimilarity
-from mowl.reasoning import MOWLReasoner
 
 from dp_cgans.ontology.embedding.projections import create_projection, ProjectionType
 from dp_cgans.ontology.embedding.random_walks import pykeen_transe, create_random_walker, WalkerType
 from dp_cgans.utils import Config
-from org.semanticweb.elk.owlapi import ElkReasonerFactory
-from java.util import HashSet
 
 from dp_cgans.utils.files import recode
 from dp_cgans.utils.logging import log
@@ -48,18 +43,7 @@ class Embedding:
             raise Exception("Dataset has not been loaded.")
 
         self._project()
-
-        if self.config.get_nested('embedding', 'pykeen') is not None:
-            pk_epochs = self.config.get_nested('embedding', 'pykeen', 'epochs')
-            pk_dimension = self.config.get_nested('embedding', 'pykeen', 'dimension')
-            pk_batch_size = self.config.get_nested('embedding', 'pykeen', 'batch_size')
-            seed = self.config.get('seed')
-
-            pk_model = pykeen_transe(self.dataset, dimension=pk_dimension, epochs=pk_epochs, batch_size=pk_batch_size, seed=seed)
-
-        else:
-            self._walk()
-
+        self._walk()
         self._save()
 
         if self.config.get('evaluate'):
@@ -177,38 +161,6 @@ class Embedding:
         log(text=f'Sentences have been created!', verbose=self.verbose)
 
         return self.sentences
-
-    def _reason(self):
-        reasoner_factory = ElkReasonerFactory()
-        reasoner = reasoner_factory.createReasoner(self.dataset.ontology)
-        mowl_reasoner = MOWLReasoner(reasoner)
-        classes = self.dataset.ontology.getClassesInSignature()
-        subclass_axioms = mowl_reasoner.infer_subclass_axioms(classes)
-        equivalent_class_axioms = mowl_reasoner.infer_equivalent_class_axioms(classes)
-        adapter = OWLAPIAdapter()
-        manager = adapter.owl_manager
-
-        axioms = HashSet()
-        axioms.addAll(subclass_axioms)
-        axioms.addAll(equivalent_class_axioms)
-
-        manager.addAxioms(self.dataset.ontology, axioms)
-
-        self.manager = manager
-        self.axioms = axioms
-
-        outfile_directory = self.config.get_nested('embedding', 'outfile', 'directory')
-        outfile_name = self.config.get_nested('embedding', 'outfile', 'file')
-        outfile_path = f"{outfile_directory}/{outfile_name}"
-
-        if not os.path.exists(outfile_directory):
-            log(text=f'Creating outfile directory...', verbose=self.verbose)
-            os.makedirs(outfile_directory)
-            log(text=f'Outfile directory has been created at \"{outfile_directory}\"', verbose=self.verbose)
-
-        #extract_and_save_axiom_corpus(self.dataset.ontology, f"{outfile_path}")
-
-        self.sentences = LineSentence(outfile_path)
 
     def _save(self) -> Word2Vec:
         log(text=f'Preparing model to be saved...', verbose=self.verbose)

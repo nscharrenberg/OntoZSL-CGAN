@@ -1,1 +1,1 @@
-from dp_cgans.ontology.embedding.embedding import Embedding
+from dp_cgans.ontology.embedding.ontology_embedding import OntologyEmbedding

@@ -2,9 +2,9 @@
   "verbose": true,
   "dataset": {
     "files": {
-      "directory": "resources/29052023/patient_data",
-      "seen": "unseen.csv",
-      "unseen": "seen.csv"
+      "directory": "resources/20230504",
+      "seen": "seen.csv",
+      "unseen": "unseen.csv"
     },
     "class_header": "rare_disease"
   },
@@ -14,7 +14,7 @@
     "threshold": 0.5,
     "train": true,
     "files": {
-      "directory": "resources/29052023/zsl",
+      "directory": "resources/20230504/zsl",
       "model": "model.pkl"
     }
   }

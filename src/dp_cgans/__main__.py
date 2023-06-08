@@ -1,11 +1,13 @@
 import mowl
-
-from dp_cgans.ontology.zsl.classifier import ZeroShotLearning
-
 mowl.init_jvm("5g")
 
+from dp_cgans.onto_dp_cgan_init import ONTO_DP_CGAN
+from dp_cgans.utils.data_types import load_config
+from dp_cgans.utils.files import create_path
+from dp_cgans.utils.logging import log, LogLevel
+
 from dp_cgans.ontology import Preprocessor
-from dp_cgans.ontology.embedding import Embedding
+from dp_cgans.ontology.zsl.classifier import ZeroShotLearning
 
 import pandas as pd
 import pkg_resources
@@ -29,27 +31,18 @@ GREEN = '\033[32m'
 
 @cli.command("gen")
 def cli_gen(
-        input_file: str,
-        gen_size: int = typer.Option(100, help="Number of rows in the generated samples file"),
-        epochs: int = typer.Option(100, help="Number of epochs"),
-        batch_size: int = typer.Option(1000, help="Batch size"),
-        output: str = typer.Option("synthetic_samples.csv", help="Path to the output"),
-        verbose: bool = typer.Option(True, help="Display logs")
+        config: str = typer.Option("configs/dp_cgans/default.json",
+                                   help="The path location of the configuration file."),
 ):
-    tabular_data = pd.read_csv(input_file)
+    _config = load_config(config)
+    input_path = create_path(_config.get_nested('dp_cgans', 'files', 'directory'), _config.get_nested('dp_cgans', 'files', 'input'), create=False)
+    output_path = create_path(_config.get_nested('dp_cgans', 'files', 'directory'), _config.get_nested('dp_cgans', 'files', 'output'), create=True)
+    verbose = _config.get_nested('dp_cgans', 'verbose')
+    gen_size = _config.get_nested('dp_cgans', 'gen_size')
 
-    model = DP_CGAN(
-        epochs=epochs,  # number of training epochs
-        batch_size=batch_size,  # the size of each batch
-        log_frequency=True,
-        verbose=verbose,
-        generator_dim=(128, 128, 128),
-        discriminator_dim=(128, 128, 128),
-        generator_lr=2e-4,
-        discriminator_lr=2e-4,
-        discriminator_steps=1,
-        private=False,
-    )
+    tabular_data = pd.read_csv(input_path)
+
+    model = DP_CGAN(_config)
 
     if verbose: print(f'🗜️  Model instantiated, fitting...')
     model.fit(tabular_data)
@@ -57,8 +50,33 @@ def cli_gen(
     if verbose: print(f'🧪 Model fitted, sampling...')
     sample = model.sample(gen_size)
 
-    sample.to_csv(output)
-    if verbose: print(f'✅ Samples generated in {BOLD}{GREEN}{output}{END}')
+    sample.to_csv(output_path)
+    if verbose: print(f'✅ Samples generated in {BOLD}{GREEN}{output_path}{END}')
+
+
+@cli.command("onto")
+def cli_onto(
+        config: str = typer.Option("configs/dp_cgans/onto.json",
+                                   help="The path location of the configuration file."),
+):
+    _config = load_config(config)
+    input_path = create_path(_config.get_nested('dp_cgans', 'files', 'directory'), _config.get_nested('dp_cgans', 'files', 'input'), create=False)
+    output_path = create_path(_config.get_nested('dp_cgans', 'files', 'directory'), _config.get_nested('dp_cgans', 'files', 'output'), create=True)
+    verbose = _config.get_nested('dp_cgans', 'verbose')
+    gen_size = _config.get_nested('dp_cgans', 'gen_size')
+
+    tabular_data = pd.read_csv(input_path)
+
+    model = ONTO_DP_CGAN(_config)
+
+    if verbose: print(f'🗜️  Model instantiated, fitting...')
+    model.fit(tabular_data)
+
+    if verbose: print(f'🧪 Model fitted, sampling...')
+    sample = model.sample(gen_size)
+
+    sample.to_csv(output_path)
+    if verbose: print(f'✅ Samples generated in {BOLD}{GREEN}{output_path}{END}')
 
 
 @cli.command("version")
@@ -68,7 +86,8 @@ def cli_version():
 
 @cli.command("preprocess")
 def cli_preprocess(
-    config: str = typer.Option("configs/preprocessing/config.json", help="The path location of the configuration file."),
+        config: str = typer.Option("configs/preprocessing/config.json",
+                                   help="The path location of the configuration file."),
 ):
     pipeline = Preprocessor(config)
     pipeline.start()
@@ -76,7 +95,8 @@ def cli_preprocess(
 
 @cli.command("embed")
 def cli_embed(
-    config: str = typer.Option("configs/embedding/config.json", help="The path location of the configuration file."),
+        config: str = typer.Option("configs/embedding/config.json",
+                                   help="The path location of the configuration file."),
 ):
     pipeline = Embedding(config)
     pipeline.start()
@@ -84,10 +104,24 @@ def cli_embed(
 
 @cli.command("zsl")
 def cli_zsl(
-    config: str = typer.Option("configs/zsl/config.json", help="The path location of the configuration file."),
+        config: str = typer.Option("configs/zsl/config.json", help="The path location of the configuration file."),
 ):
     pipeline = ZeroShotLearning(config)
     pipeline.start()
+
+    test_samples = pipeline.unseen["features"]
+    converted_text = pipeline.tab_to_text(test_samples)
+    embeddings = pipeline.model.encode(converted_text)
+
+    predictions = []
+    scores = []
+
+    for embedding in embeddings:
+        pred, score = pipeline.predict(embedding)
+        predictions.append(pred[0])
+        scores.append(score[0])
+
+    log(text=f"pred: {predictions} - score: {scores}", level=LogLevel.INFO)
 
 
 if __name__ == "__main__":

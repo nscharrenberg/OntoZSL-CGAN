@@ -1,0 +1,35 @@
+{
+  "dp_cgans": {
+    "files": {
+      "directory": "resources/dp_cgans/20230608",
+      "input": "example_tabular_data_UCIAdult.csv",
+      "output": "synthetic_tabular_data_UCIAdult.csv"
+    },
+    "field_names": null,
+    "field_types": null,
+    "field_transformers": null,
+    "anonymize_fields": null,
+    "primary_key": null,
+    "constraints": null,
+    "table_metadata": null,
+    "embedding_dim": 128,
+    "generator_dim": [128, 128, 128],
+    "discriminator_dim": [128, 128, 128],
+    "generator_lr": 2e-4,
+    "generator_decay": 1e-6,
+    "discriminator_lr": 2e-4,
+    "discriminator_decay": 1e-6,
+    "batch_size": 1000,
+    "discriminator_steps": 1,
+    "log_frequency": true,
+    "verbose": true,
+    "epochs": 100,
+    "pac": 10,
+    "cuda": true,
+    "rounding": "auto",
+    "min_value": "auto",
+    "max_value": "auto",
+    "private": false,
+    "gen_size": 100
+  }
+}
