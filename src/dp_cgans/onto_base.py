@@ -10,6 +10,7 @@ import pandas as pd
 
 from dp_cgans.errors import ConstraintsNotMetError
 from dp_cgans.metadata import Table
+from dp_cgans.utils.logging import log
 
 LOGGER = logging.getLogger(__name__)
 COND_IDX = str(uuid.uuid4())

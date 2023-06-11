@@ -95,7 +95,7 @@ def populate_rd_sets(rd_set: set, rd_list: list, rd_groups_dict: dict, method: s
                 raise Exception(f"The Rare Disease {rd} is unknown")
 
         log(f"📖 Progress: Creating seen Rare Disease Sets...", verbose=verbose)
-        if len(selected_seen_rds):
+        if len(selected_seen_rds) > 0:
             for rd in selected_seen_rds:
                 if rd in rd_set:
                     if (rd not in seen_rds_set) and (rd not in unseen_rds_set):

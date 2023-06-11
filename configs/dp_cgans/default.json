@@ -1,4 +1,5 @@
 {
+  "verbose": true,
   "dp_cgans": {
     "files": {
       "directory": "resources/dp_cgans/20230608",
@@ -22,7 +23,6 @@
     "batch_size": 1000,
     "discriminator_steps": 1,
     "log_frequency": true,
-    "verbose": true,
     "epochs": 100,
     "pac": 10,
     "cuda": true,

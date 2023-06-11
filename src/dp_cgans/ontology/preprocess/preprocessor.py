@@ -7,6 +7,7 @@ from xml.etree import ElementTree
 import numpy as np
 import pandas as pd
 import rdflib
+import requests
 from rdflib import Namespace
 
 from dp_cgans.ontology.preprocess.csv_to_txt import read_dataset, get_sub_class_of_parents, get_other_properties, get_parents, \
@@ -94,7 +95,8 @@ class Preprocessor:
                 f"The XML file located at \"{xml_file}\" does not exist, and can therefore not be converted.")
 
         if os.path.isfile(new_file):
-            raise Exception(f"The CSV file located at \"{new_file}\" already exists, and can therefore not be saved.")
+            log(text=f"The CSV file located at \"{new_file}\" already exist, we'll therefore not create a new one.")
+            return
 
         tree = ElementTree.parse(xml_file)
         root = tree.getroot()
@@ -237,17 +239,28 @@ class Preprocessor:
         log(text=f"Success! CSV has been converted to TXT and saved to \"{new_file}\"", verbose=True)
 
     def _await_sparql_url(self):
+        config_url = self.config.get_nested('sparql', 'url')
+
         log(f"We are at a step, where some manual actions have to be performed. \n 1. Merge the \"hp.obo\" into \"hoom.owl\". \n 2. Merge \"ordo.owl\" into the merged dataset from step 1. \n 3. Save the merged dataset to \"owl/xml\" and \"ttl\". \n 4. Setup a SparQL server (e.g. Apache Jena Fuseki) \n 5. Upload the merged dataset to the SparQL server. \n 6. Copy the query URL into the terminal (e.g. \"http://localhost:3030/hoom/query\").",
             level=LogLevel.INFO)
         is_valid = False
-
         sparql_url = None
 
         while not is_valid:
-            sparql_url = input("SPARQL url: ")
+            if config_url is not None:
+                sparql_url = self.config.get_nested('sparql', 'url')
+                log(f"You already declared the url in your config file: \"{config_url}\", we will check this first.")
+            else:
+                sparql_url = input("SPARQL url: ")
 
-            if urllib.request.urlopen("https://www.stackoverflow.com").getcode() == 200:
+            f = requests.get(sparql_url)
+
+            if "Service Description: /merged/query" in f.text:
                 is_valid = True
+            elif config_url is not None:
+                config_url = None
+
+        log(f"The SPARQL url: \"{config_url}\" is correct and will be used.")
 
         self.sparql = sparql_url
 
@@ -442,7 +455,7 @@ class Preprocessor:
 
                     patients_count += 1
 
-        unseen_index = len(unseen_patients_data) + 1
+        unseen_index = len(seen_patients_data) + 1
         full_data = np.array(header + seen_patients_data + unseen_patients_data)
 
         del_col_th = self.config.get_nested('generator', 'del_col_th')
@@ -466,7 +479,7 @@ class Preprocessor:
         unseen_patients_data = full_data[unseen_index:]
         unseen_unique = np.unique(unseen_patients_data[:, :1])
         unseen_patients_data = pd.DataFrame(unseen_patients_data, columns=headers)
-        unseen_patients_data = unseen_patients_data[unseen_patients_data.columns]
+        unseen_patients_data = unseen_patients_data[seen_patients_data.columns]
 
         if sort:
             unseen_patients_data = unseen_patients_data.sort_values(by=['rare_disease'])
@@ -535,10 +548,14 @@ class Preprocessor:
         df_rd.to_csv(dict_ordo_file, sep=';', encoding='utf-8', index=False, header=False)
 
     def _init_directory(self):
-        base = get_or_create_directory(self.config.get('directory'))
+        base = get_or_create_directory(self.config.get_nested('dp_cgans', 'files', 'directory'))
         self.directory = base
 
-        downloads = get_or_create_directory(f"{self.directory}/{self.config.get_nested('downloads', 'directory')}")
+        if self.config.get_nested('downloads', 'use_root'):
+            downloads = get_or_create_directory(f"{self.directory}/{self.config.get_nested('downloads', 'directory')}")
+        else:
+            downloads = get_or_create_directory(f"{self.config.get_nested('downloads', 'directory')}")
+
         convert = get_or_create_directory(f"{self.directory}/{self.config.get_nested('convert', 'files', 'directory')}")
         train_test = get_or_create_directory(f"{self.directory}/{self.config.get_nested('train_test', 'files', 'directory')}")
         generator = get_or_create_directory(f"{self.directory}/{self.config.get_nested('generator', 'files', 'directory')}")

@@ -35,6 +35,8 @@ class OntologyEmbedding:
         else:
             self.fit()
 
+        log(text=f'Ontology Embedding Model is Initialized (trained, saved and/or loaded)', verbose=self._verbose)
+
         return self.model
 
     def fit_and_save(self) -> Word2Vec:
@@ -257,7 +259,7 @@ class OntologyEmbedding:
         return np.zeros(self.embed_size)
 
     def _init_verbose(self):
-        self._verbose = self._config.get_nested('embedding', 'verbose')
+        self._verbose = self._config.get_nested('verbose')
 
         if self._verbose is None or not isinstance(self._verbose, bool):
             self._verbose = False

@@ -1,9 +1,14 @@
 {
+  "verbose": true,
   "dp_cgans": {
     "files": {
-      "directory": "resources/dp_cgans/20230608",
-      "input": "data/seen.csv",
-      "output": "data/generated.csv"
+      "directory": "resources/dp_cgans/12_col",
+      "input": "patient_data/seen.csv",
+      "output": "patient_data/generated.csv"
+    },
+    "results": {
+      "directory": "results",
+      "file": "results.csv"
     },
     "field_names": null,
     "field_types": null,
@@ -22,7 +27,6 @@
     "batch_size": 200,
     "discriminator_steps": 1,
     "log_frequency": true,
-    "verbose": true,
     "epochs": 10,
     "pac": 10,
     "cuda": true,
@@ -33,9 +37,8 @@
     "gen_size": 100
   },
   "embedding": {
-    "verbose": true,
     "files": {
-      "directory": "resources/dp_cgans/20230608/embedding"
+      "directory": "resources/dp_cgans/12_col/embedding"
     },
     "model": {
       "load": true,
@@ -81,8 +84,30 @@
       "min_count": 3
     },
     "references": [
-      "resources/dp_cgans/20230608/embedding/dicts/HPO.dict",
-      "resources/dp_cgans/20230608/embedding/dicts/ORDO.dict"
+      "resources/dp_cgans/12_col/embedding/dictionaries/HPO.dict",
+      "resources/dp_cgans/12_col/embedding/dictionaries/ORDO.dict"
     ]
+  },
+  "zsl": {
+    "enabled": false,
+    "files": {
+      "directory": "resources/12_col/5_patients/zsl"
+    },
+    "class_header": "rare_disease",
+    "model": {
+      "name": "bert-base-uncased",
+      "unknown_class": "unknown",
+      "threshold": 0.8,
+      "load": false,
+      "save": true,
+      "prompt": false,
+      "files": {
+        "use_root": true,
+        "directory": "model",
+        "model": "model.pkl",
+        "results": true,
+        "output": "results.csv"
+      }
+    }
   }
 }

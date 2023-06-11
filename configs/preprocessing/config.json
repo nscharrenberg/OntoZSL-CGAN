@@ -1,7 +1,8 @@
 {
   "verbose": true,
-  "directory": "resources/29052023",
+  "directory": "resources/preprocess/5_patients",
   "downloads": {
+    "use_root": true,
     "directory": "downloads"
   },
   "convert": {
@@ -24,17 +25,17 @@
       "method": "selected_rds",
       "seen": [
         "http://www.orpha.net/ORDO/Orphanet_231401",
-          "http://www.orpha.net/ORDO/Orphanet_29073",
-          "http://www.orpha.net/ORDO/Orphanet_729",
-          "http://www.orpha.net/ORDO/Orphanet_3226",
-          "http://www.orpha.net/ORDO/Orphanet_86843",
-          "http://www.orpha.net/ORDO/Orphanet_98827",
-          "http://www.orpha.net/ORDO/Orphanet_514",
-          "http://www.orpha.net/ORDO/Orphanet_517",
-          "http://www.orpha.net/ORDO/Orphanet_318",
-          "http://www.orpha.net/ORDO/Orphanet_824",
-          "http://www.orpha.net/ORDO/Orphanet_520",
-          "http://www.orpha.net/ORDO/Orphanet_139399"
+        "http://www.orpha.net/ORDO/Orphanet_29073",
+        "http://www.orpha.net/ORDO/Orphanet_729",
+        "http://www.orpha.net/ORDO/Orphanet_3226",
+        "http://www.orpha.net/ORDO/Orphanet_86843",
+        "http://www.orpha.net/ORDO/Orphanet_98827",
+        "http://www.orpha.net/ORDO/Orphanet_514",
+        "http://www.orpha.net/ORDO/Orphanet_517",
+        "http://www.orpha.net/ORDO/Orphanet_318",
+        "http://www.orpha.net/ORDO/Orphanet_824",
+        "http://www.orpha.net/ORDO/Orphanet_520",
+        "http://www.orpha.net/ORDO/Orphanet_139399"
       ],
       "unseen": [
         "http://www.orpha.net/ORDO/Orphanet_3318",
@@ -51,10 +52,10 @@
     },
     "small_file": false,
     "use_ontology": true,
-    "patients_per_rd": 10,
+    "patients_per_rd": 5,
     "sort": true,
     "print_every": 0,
-    "del_col_th": 0
+    "del_col_th": 10
   },
   "dictionaries": {
     "files": {

@@ -10,15 +10,14 @@ import numpy as np
 import pandas as pd
 import torch
 from packaging import version
+from progress.bar import Bar
 from torch import optim
 from torch.nn import BatchNorm1d, Dropout, LeakyReLU, Linear, Module, ReLU, Sequential, functional, BCEWithLogitsLoss, \
     utils
-
-from dp_cgans.data_sampler import DataSampler
 from dp_cgans.data_transformer import DataTransformer
 from dp_cgans.onto_data_sampler import ONTODataSampler
 from dp_cgans.ontology.embedding import OntologyEmbedding
-from dp_cgans.ontology.zsl.classifier import ZeroShotLearning
+from dp_cgans.ontology.zsl import ZeroShotLearning
 from dp_cgans.synthesizers.base import BaseSynthesizer
 
 import scipy.stats
@@ -29,6 +28,8 @@ from contextlib import redirect_stdout
 from dp_cgans.rdp_accountant import compute_rdp, get_privacy_spent
 from dp_cgans.utils import Config
 from dp_cgans.utils.data_types import load_config, tuplify
+from dp_cgans.utils.files import create_path, get_or_create_directory
+from dp_cgans.utils.logging import log, print_progress
 
 
 class Discriminator(Module):
@@ -168,7 +169,7 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
 
         self._discriminator_steps = self._config.get_nested('dp_cgans', 'discriminator_steps')
         self._log_frequency = self._config.get_nested('dp_cgans', 'log_frequency')
-        self._verbose = self._config.get_nested('dp_cgans', 'verbose')
+        self._init_verbose()
         self._epochs = self._config.get_nested('dp_cgans', 'epochs')
         self.pac = self._config.get_nested('dp_cgans', 'pac')
 
@@ -195,6 +196,13 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
 
         self._embedding = OntologyEmbedding(self._config)
         self._embedding.fit_or_load()
+        log(text=f"Finished Onto DP-CGAN Initialization", verbose=self._verbose)
+
+    def _init_verbose(self):
+        self._verbose = self._config.get_nested('verbose')
+
+        if self._verbose is None or not isinstance(self._verbose, bool):
+            self._verbose = False
 
     @staticmethod
     def _gumbel_softmax(logits, tau=1, hard=False, eps=1e-10, dim=-1):
@@ -390,6 +398,7 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         #     else:
         #         raise NotImplementedError("Conditional columns are not in the valid columns.",discrete_columns)
 
+        log(text=f"FIT: Starting the fitting process...", verbose=self._verbose)
         self._validate_discrete_columns(train_data, discrete_columns)
 
         if epochs is None:
@@ -401,13 +410,18 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
                 DeprecationWarning
             )
 
+        log(text=f"FIT: Full Transforming data...", verbose=self._verbose)
         full_transformer = DataTransformer()
         full_transformer.fit(train_data, discrete_columns)
         train_data_full = full_transformer.transform(train_data)
 
+        log(text=f"FIT: Data has been transformed!", verbose=self._verbose)
+
         rds = train_data.iloc[:, 0].values
         _, idx = np.unique(rds, return_index=True)
         rds = rds[np.sort(idx)]
+
+        log(text=f"FIT: Ontology Data Sampling...", verbose=self._verbose)
 
         self._data_sampler = ONTODataSampler(
             train_data_full,
@@ -419,6 +433,8 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
 
         train_data.drop(columns=train_data.columns[0], axis=1, inplace=True)
 
+        log(text=f"FIT: Transforming Training data...", verbose=self._verbose)
+
         self._transformer = DataTransformer()
         self._transformer.fit(train_data, discrete_columns)
 
@@ -426,11 +442,15 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
 
         data_dim = self._transformer.output_dimensions
 
+        log(text=f"FIT: Initializing Generator...", verbose=self._verbose)
+
         self._generator = Generator(
             self._embedding_dim + self._embedding.embed_size,  # number of categories in the whole dataset.
             self._generator_dim,
             data_dim
         ).to(self._device)
+
+        log(text=f"FIT: Initializing Discriminator...", verbose=self._verbose)
 
         self._discriminator = Discriminator(
             data_dim + self._embedding.embed_size,
@@ -438,10 +458,18 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
             pac=self.pac
         ).to(self._device)
 
+        if self._config.get_nested('zsl', 'enabled'):
+            log(text=f"FIT: Initializing Zero-Shot Classifier...", verbose=self._verbose)
+            self._zero_shot_classifier = ZeroShotLearning(self._config)
+            self._zero_shot_classifier.fit_or_load()
+
+        log(text=f"FIT: Performing Adam Optimization on Generator...", verbose=self._verbose)
         optimizerG = optim.Adam(
             self._generator.parameters(), lr=self._generator_lr, betas=(0.5, 0.9),
             weight_decay=self._generator_decay
         )
+
+        log(text=f"FIT: Performing Adam Optimization on Discriminator...", verbose=self._verbose)
 
         optimizerD = optim.Adam(
             self._discriminator.parameters(), lr=self._discriminator_lr,
@@ -452,192 +480,213 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         std = mean + 1
 
         steps_per_epoch = max(len(train_data) // self._batch_size, 1)
+
+        log(text=f"FIT: Training...", verbose=self._verbose)
+
         ######## ADDED ########
-        with open('loss_output_%s.txt' % str(epochs), 'w') as f:
-            with redirect_stdout(f):
+        base_directory = self._config.get_nested('dp_cgans', 'files', 'directory')
+        loss_directory = get_or_create_directory(base_directory,
+                                                 self._config.get_nested('dp_cgans', 'results', 'directory'))
+        loss_file = create_path(loss_directory, self._config.get_nested('dp_cgans', 'results', 'file'),
+                                create=True, )
+
+        loss_columns = ['time', 'epoch', 'loss_G', 'loss_D']
+        loss_results = pd.DataFrame(columns=loss_columns, )
+
+        ######## ADDED ########
+        for i in range(epochs):
+            log(text=f"FIT: Epoch {i+1} out of {epochs}")
+            for id_ in range(steps_per_epoch):
+                log(text=f"FIT: Step {id_} out of {steps_per_epoch} for epoch {i+1}")
+                for n in range(self._discriminator_steps):
+                    log(text=f"FIT: Discriminator Step {n} out of {self._discriminator_steps} for epoch step {id_} on epoch {i + 1}")
+                    fakez = torch.normal(mean=mean, std=std)
+
+                    # condvec = self._data_sampler.sample_condvec(self._batch_size)
+
+                    condvec_pair = self._data_sampler.sample_condvec_pair(self._batch_size)
+                    c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
+
+                    # if condvec is None:
+                    #     c1, m1, col, opt = None, None, None, None
+                    #     real = self._data_sampler.sample_data(self._batch_size, col, opt)
+                    # else:
+                    #     c1, m1, col, opt = condvec
+                    #     c1 = torch.from_numpy(c1).to(self._device)
+                    #     m1 = torch.from_numpy(m1).to(self._device)
+                    #     fakez = torch.cat([fakez, c1], dim=1)
+
+                    #     perm = np.arange(self._batch_size)
+                    #     np.random.shuffle(perm)
+                    #     real = self._data_sampler.sample_data(
+                    #         self._batch_size, col[perm], opt[perm])
+                    #     c2 = c1[perm]
+
+                    if condvec_pair is None:
+                        c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = None, None, None, None
+                        real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1, opt_pair_1)
+                    else:
+                        fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1,
+                                                                                     batch_size=self._batch_size)
+                        fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
+
+                        perm = np.arange(self._batch_size)
+                        np.random.shuffle(perm)
+                        c_pair_2 = c_pair_1[perm]
+                        fakez = torch.cat([fakez, fake_embeddings], dim=1)
+
+                        real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1[perm],
+                                                                   opt_pair_1[perm])
+                        real_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_2,
+                                                                                     batch_size=self._batch_size)
+                        real_embeddings = torch.from_numpy(real_embeddings).to(self._device)
+
+                    fake = self._generator(
+                        fakez)  # categories (unique value count) + continuous (1+n_components)
+                    fakeact = self._apply_activate(fake)
+
+                    real = torch.from_numpy(real.astype('float32')).to(self._device)
+
+                    # if c1 is not None:
+                    # fake_cat = torch.cat([fakeact, c1], dim=1)
+                    # real_cat = torch.cat([real, c2], dim=1)
+                    if col_pair_1 is not None:
+                        fake_cat = torch.cat([fakeact, fake_embeddings], dim=1)
+                        real_cat = torch.cat([real, real_embeddings], dim=1)
+                    else:
+                        real_cat = real
+                        fake_cat = fake
+
+                    y_fake = self._discriminator(fake_cat)
+                    y_real = self._discriminator(real_cat)
+
+                    loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
+
+                    #### DP ####
+                    if self.private:
+                        sigma = 1
+                        weight_clip = 0.01
+
+                        if sigma is not None:
+                            for parameter in self._discriminator.parameters():
+                                parameter.register_hook(
+                                    lambda grad: grad.cuda() + (1 / self._batch_size) * sigma
+                                                 * torch.randn(parameter.shape).cuda()
+                                )
+                    #### DP ####
+                    pen = self._discriminator.calc_gradient_penalty(
+                        real_cat, fake_cat, self._device, self.pac)
+
+                    optimizerD.zero_grad()
+                    pen.backward(
+                        retain_graph=True)  # https://machinelearningmastery.com/how-to-implement-wasserstein-loss-for-generative-adversarial-networks/
+                    loss_d.backward()
+                    optimizerD.step()
+
+                    if self.private:
+                        #### DP ####
+                        # Weight clipping for privacy guarantee
+                        for param in self._discriminator.parameters():
+                            param.data.clamp_(-weight_clip, weight_clip)
+                        #### DP ####
+
+
+                fakez = torch.normal(mean=mean, std=std)
+                condvec_pair = self._data_sampler.sample_condvec_pair(self._batch_size)
+
+                # if condvec is None:
+                #     c1, m1, col, opt = None, None, None, None
+                # else:
+                #     c1, m1, col, opt = condvec
+
+                #     c1 = torch.from_numpy(c1).to(self._device)
+                #     m1 = torch.from_numpy(m1).to(self._device)
+                #     fakez = torch.cat([fakez, c1], dim=1)
+
+                if condvec_pair is None:
+                    c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = None, None, None, None
+                else:
+                    c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
+
+                    fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1,
+                                                                                 batch_size=self._batch_size)
+                    fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
+                    c_pair_1 = torch.from_numpy(c_pair_1).to(self._device)
+                    m_pair_1 = torch.from_numpy(m_pair_1).to(self._device)
+                    fakez = torch.cat([fakez, fake_embeddings], dim=1)
+
+                fake = self._generator(fakez)
+                fakeact = self._apply_activate(fake)
+
+                # if c1 is not None:
+                #     y_fake = discriminator(torch.cat([fakeact, c1], dim=1))
+                # else:
+                #     y_fake = discriminator(fakeact)
+
+                # if condvec is None:
+                #     cross_entropy = 0
+                # else:
+                #     cross_entropy = self._cond_loss(fake, c1, m1)
+
+                # loss_g = -torch.mean(y_fake) + cross_entropy# + rules_penalty
+
+                if c_pair_1 is not None:
+                    y_fake = self._discriminator(torch.cat([fakeact, fake_embeddings], dim=1))
+                else:
+                    y_fake = self._discriminator(fakeact)
+
+                if condvec_pair is None:
+                    cross_entropy_pair = 0
+                else:
+                    cross_entropy_pair = self._cond_loss_pair(fake, c_pair_1, m_pair_1)
+
+                loss_g = -torch.mean(y_fake) + cross_entropy_pair  # + rules_penalty
+
+                optimizerG.zero_grad()
+                loss_g.backward()
+                optimizerG.step()
+
+            if self._verbose:
                 ######## ADDED ########
-                for i in range(epochs):
-                    for id_ in range(steps_per_epoch):
+                now = datetime.now()
+                current_time = now.strftime("%H:%M:%S")
 
-                        for n in range(self._discriminator_steps):
-                            fakez = torch.normal(mean=mean, std=std)
+                row = pd.DataFrame([[current_time, i + 1, f"{loss_g.detach().cpu(): .4f}", f"{loss_d.detach().cpu(): .4f}"]],
+                                   columns=loss_columns)
+                loss_results = pd.concat([loss_results, row])
 
-                            # condvec = self._data_sampler.sample_condvec(self._batch_size)
+                # Calculate the current privacy cost using the accountant
+                # https://github.com/BorealisAI/private-data-generation/blob/master/models/dp_wgan.py
+                # https://github.com/tensorflow/privacy/tree/master/tutorials/walkthrough
 
-                            condvec_pair = self._data_sampler.sample_condvec_pair(self._batch_size)
-                            c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
+                print(current_time, f"Epoch {i + 1}, Loss G: {loss_g.detach().cpu(): .4f},"
+                                    f"Loss D: {loss_d.detach().cpu(): .4f}", flush=True)
 
-                            # if condvec is None:
-                            #     c1, m1, col, opt = None, None, None, None
-                            #     real = self._data_sampler.sample_data(self._batch_size, col, opt)
-                            # else:
-                            #     c1, m1, col, opt = condvec
-                            #     c1 = torch.from_numpy(c1).to(self._device)
-                            #     m1 = torch.from_numpy(m1).to(self._device)
-                            #     fakez = torch.cat([fakez, c1], dim=1)
+                if self.private:
+                    orders = [1 + x / 10. for x in range(1, 100)]
+                    sampling_probability = self._batch_size / len(train_data)
+                    delta = 2e-6
+                    rdp = compute_rdp(q=sampling_probability,
+                                      noise_multiplier=sigma,
+                                      steps=i * steps_per_epoch,
+                                      orders=orders)
+                    epsilon, _, opt_order = get_privacy_spent(orders, rdp,
+                                                              target_delta=delta)  # target_delta=1e-5
 
-                            #     perm = np.arange(self._batch_size)
-                            #     np.random.shuffle(perm)
-                            #     real = self._data_sampler.sample_data(
-                            #         self._batch_size, col[perm], opt[perm])
-                            #     c2 = c1[perm]
+                    print('differential privacy with eps = {:.3g} and delta = {}.'.format(
+                        epsilon, delta))
+                    print('The optimal RDP order is {}.'.format(opt_order))
 
-                            if condvec_pair is None:
-                                c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = None, None, None, None
-                                real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1, opt_pair_1)
-                            else:
-                                fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1, batch_size=self._batch_size)
-                                fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
+                    if opt_order == max(orders) or opt_order == min(orders):
+                        print('The privacy estimate is likely to be improved by expanding '
+                              'the set of orders.')
+                else:
+                    epsilon = np.nan
+            ######## ADDED ########
 
-                                perm = np.arange(self._batch_size)
-                                np.random.shuffle(perm)
-                                c_pair_2 = c_pair_1[perm]
-                                fakez = torch.cat([fakez, fake_embeddings], dim=1)
-
-                                real = self._data_sampler.sample_data_pair(self._batch_size, col_pair_1[perm],
-                                                                           opt_pair_1[perm])
-                                real_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_2,
-                                                                                             batch_size=self._batch_size)
-                                real_embeddings = torch.from_numpy(real_embeddings).to(self._device)
-
-                            fake = self._generator(
-                                fakez)  # categories (unique value count) + continuous (1+n_components)
-                            fakeact = self._apply_activate(fake)
-
-                            real = torch.from_numpy(real.astype('float32')).to(self._device)
-
-                            # if c1 is not None:
-                            # fake_cat = torch.cat([fakeact, c1], dim=1)
-                            # real_cat = torch.cat([real, c2], dim=1)
-                            if col_pair_1 is not None:
-                                fake_cat = torch.cat([fakeact, fake_embeddings], dim=1)
-                                real_cat = torch.cat([real, real_embeddings], dim=1)
-                            else:
-                                real_cat = real
-                                fake_cat = fake
-
-                            y_fake = self._discriminator(fake_cat)
-                            y_real = self._discriminator(real_cat)
-
-                            loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
-
-                            #### DP ####
-                            if self.private:
-                                sigma = 1
-                                weight_clip = 0.01
-
-                                if sigma is not None:
-                                    for parameter in self._discriminator.parameters():
-                                        parameter.register_hook(
-                                            lambda grad: grad.cuda() + (1 / self._batch_size) * sigma
-                                                         * torch.randn(parameter.shape).cuda()
-                                        )
-                            #### DP ####
-
-                            pen = self._discriminator.calc_gradient_penalty(
-                                real_cat, fake_cat, self._device, self.pac)
-
-                            optimizerD.zero_grad()
-                            pen.backward(
-                                retain_graph=True)  # https://machinelearningmastery.com/how-to-implement-wasserstein-loss-for-generative-adversarial-networks/
-                            loss_d.backward()
-                            optimizerD.step()
-
-                            if self.private:
-                                #### DP ####
-                                # Weight clipping for privacy guarantee
-                                for param in self._discriminator.parameters():
-                                    param.data.clamp_(-weight_clip, weight_clip)
-                                #### DP ####
-
-                        fakez = torch.normal(mean=mean, std=std)
-                        condvec_pair = self._data_sampler.sample_condvec_pair(self._batch_size)
-
-                        # if condvec is None:
-                        #     c1, m1, col, opt = None, None, None, None
-                        # else:
-                        #     c1, m1, col, opt = condvec
-
-                        #     c1 = torch.from_numpy(c1).to(self._device)
-                        #     m1 = torch.from_numpy(m1).to(self._device)
-                        #     fakez = torch.cat([fakez, c1], dim=1)
-
-                        if condvec_pair is None:
-                            c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = None, None, None, None
-                        else:
-                            c_pair_1, m_pair_1, col_pair_1, opt_pair_1 = condvec_pair
-
-                            fake_embeddings = self._data_sampler.get_embeds_from_cat_ids(cat_ids=c_pair_1, batch_size=self._batch_size)
-                            fake_embeddings = torch.from_numpy(fake_embeddings).to(self._device)
-                            c_pair_1 = torch.from_numpy(c_pair_1).to(self._device)
-                            m_pair_1 = torch.from_numpy(m_pair_1).to(self._device)
-                            fakez = torch.cat([fakez, fake_embeddings], dim=1)
-
-                        fake = self._generator(fakez)
-                        fakeact = self._apply_activate(fake)
-
-                        # if c1 is not None:
-                        #     y_fake = discriminator(torch.cat([fakeact, c1], dim=1))
-                        # else:
-                        #     y_fake = discriminator(fakeact)
-
-                        # if condvec is None:
-                        #     cross_entropy = 0
-                        # else:
-                        #     cross_entropy = self._cond_loss(fake, c1, m1)
-
-                        # loss_g = -torch.mean(y_fake) + cross_entropy# + rules_penalty
-
-                        if c_pair_1 is not None:
-                            y_fake = self._discriminator(torch.cat([fakeact, fake_embeddings], dim=1))
-                        else:
-                            y_fake = self._discriminator(fakeact)
-
-                        if condvec_pair is None:
-                            cross_entropy_pair = 0
-                        else:
-                            cross_entropy_pair = self._cond_loss_pair(fake, c_pair_1, m_pair_1)
-
-                        loss_g = -torch.mean(y_fake) + cross_entropy_pair  # + rules_penalty
-
-                        optimizerG.zero_grad()
-                        loss_g.backward()
-                        optimizerG.step()
-
-                    if self._verbose:
-                        ######## ADDED ########
-                        now = datetime.now()
-                        current_time = now.strftime("%H:%M:%S")
-
-                        # Calculate the current privacy cost using the accountant
-                        # https://github.com/BorealisAI/private-data-generation/blob/master/models/dp_wgan.py
-                        # https://github.com/tensorflow/privacy/tree/master/tutorials/walkthrough
-
-                        print(current_time, f"Epoch {i + 1}, Loss G: {loss_g.detach().cpu(): .4f},"
-                                            f"Loss D: {loss_d.detach().cpu(): .4f}", flush=True)
-
-                        if self.private:
-                            orders = [1 + x / 10. for x in range(1, 100)]
-                            sampling_probability = self._batch_size / len(train_data)
-                            delta = 2e-6
-                            rdp = compute_rdp(q=sampling_probability,
-                                              noise_multiplier=sigma,
-                                              steps=i * steps_per_epoch,
-                                              orders=orders)
-                            epsilon, _, opt_order = get_privacy_spent(orders, rdp,
-                                                                      target_delta=delta)  # target_delta=1e-5
-
-                            print('differential privacy with eps = {:.3g} and delta = {}.'.format(
-                                epsilon, delta))
-                            print('The optimal RDP order is {}.'.format(opt_order))
-
-                            if opt_order == max(orders) or opt_order == min(orders):
-                                print('The privacy estimate is likely to be improved by expanding '
-                                      'the set of orders.')
-                        else:
-                            epsilon = np.nan
-
-                    ######## ADDED ########
+        log(text=f"Saving Results to \"{loss_file}\".")
+        loss_results.to_csv(loss_file, index=False)
+        log(text=f"Results have been saved.")
 
     def sample(self, n, unseen_rds=[], sort=True):
         """Sample data similar to the training data.
@@ -706,6 +755,10 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         sampled_data.insert(loc=0, column='rare_disease', value=sampled_rds[:n])
         if sort:
             sampled_data = sampled_data.sort_values(by=['rare_disease'])
+
+        if self._config.get_nested('zsl', 'enabled'):
+            # Perform Zero-shot Classification
+            predictions, scores = self._zero_shot_classifier.predict(sampled_data)
 
         return sampled_data
 

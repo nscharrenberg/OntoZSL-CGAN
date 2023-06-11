@@ -2895,6 +2895,17 @@ files = [
 dev = ["pre-commit", "tox"]
 
 [[package]]
+name = "progress"
+version = "1.6"
+description = "Easy to use progress bars"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "progress-1.6.tar.gz", hash = "sha256:c9c86e98b5c03fa1fe11e3b67c1feda4788b8d0fe7336c2ff7d5644ccfba34cd"},
+]
+
+[[package]]
 name = "prometheus-client"
 version = "0.16.0"
 description = "Python client for the Prometheus monitoring system."
@@ -4953,4 +4964,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.10"
-content-hash = "6f69b567ba9d7f113f0e614093075f9542d14889dcf9d02fcb4f334cf3097ba1"
+content-hash = "0dcdc95ce9aa62a2e590ec0bc1b7e25b9f168a83c5abb450ca5c273c31b5a85e"
