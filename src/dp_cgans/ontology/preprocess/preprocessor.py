@@ -484,6 +484,20 @@ class Preprocessor:
         if sort:
             unseen_patients_data = unseen_patients_data.sort_values(by=['rare_disease'])
 
+        max_columns = self.config.get_nested('generator', 'max_columns')
+
+        if max_columns is not None and max_columns > 0:
+            max_columns = max_columns + 1
+            total_data = pd.concat([seen_patients_data, unseen_patients_data])
+            total_data = total_data.astype({col: 'int32' for col in total_data.columns if col != 'rare_disease'})
+            total_data['rare_disease'] = total_data['rare_disease'].astype(str)
+            columns_to_remove = len(total_data.columns) - max_columns
+            if columns_to_remove > 0:
+                total_data = Preprocessor.remove_n_lowest_from_df(total_data, columns_to_remove)
+
+                seen_patients_data = seen_patients_data[total_data.columns]
+                unseen_patients_data = unseen_patients_data[total_data.columns]
+
         log(f"{len(seen_patients_data)} seen patients generated ({len(seen_patients_data.columns)} columns)", verbose=self.verbose)
         log(f"{len(unseen_patients_data)} unseen patients generated ({len(unseen_patients_data.columns)} columns)",
             verbose=self.verbose)
@@ -575,6 +589,17 @@ class Preprocessor:
 
         if self.verbose is None or not isinstance(self.verbose, bool):
             self.verbose = False
+
+    @staticmethod
+    def remove_n_lowest_from_df(df: pd.DataFrame, max_cols: int):
+        if max_cols < 0:
+            return df
+
+        numeric_columns = df.select_dtypes(include=['number']).columns
+        column_sums = df[numeric_columns].sum()
+        lowest_sum_incides = column_sums.nsmallest(max_cols).index
+
+        return df.drop(columns=lowest_sum_incides)
 
     def _define_download_paths(self):
         hpo = self.config.get_nested('downloads', 'hpo')
