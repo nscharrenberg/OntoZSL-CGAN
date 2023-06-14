@@ -55,7 +55,8 @@
     "patients_per_rd": 5,
     "sort": true,
     "print_every": 0,
-    "del_col_th": 10
+    "del_col_th": 0,
+    "max_columns": 5
   },
   "dictionaries": {
     "files": {
@@ -63,5 +64,8 @@
       "hpo": "HPO.dict",
       "ordo": "ORDO.dict"
     }
-  }
+  },
+  "sparql": {
+        "url": "http://localhost:3030/merged/query"
+    }
 }
