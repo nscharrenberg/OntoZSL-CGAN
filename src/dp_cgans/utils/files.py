@@ -80,6 +80,9 @@ def create_path(directory: str, file_name: str, create: bool = True):
     if file_name is None:
         return None
 
+    if directory is None:
+        return file_name
+
     get_or_create_directory(directory, error=not create)
 
     return os.path.join(directory, file_name)

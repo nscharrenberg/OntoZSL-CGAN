@@ -2,6 +2,10 @@ import os.path
 
 import mowl
 
+from dp_cgans.experiments.ExperimentModelType import ExperimentModelType
+from dp_cgans.experiments.decision_tree_model import DecisionTreeModel
+from dp_cgans.experiments.logistic_regression_model import LogisticRegressionModel
+from dp_cgans.experiments.random_forest_model import RandomForestModel
 from dp_cgans.utils import Config
 
 mowl.init_jvm("5g")
@@ -63,7 +67,9 @@ def cli_gen(
     if verbose: print(f'🧪 Model fitted, sampling...')
     sample = model.sample(gen_size)
 
-    sample.to_csv(output_path)
+    sample.to_csv(output_path, encoding="utf-8",
+                  index=False,
+                  header=True)
     if verbose: print(f'✅ Samples generated in {BOLD}{GREEN}{output_path}{END}')
 
 
@@ -143,11 +149,14 @@ def cli_experiments(
         loader: str = typer.Option(None,
                                    help="The path location of the file that specifies all the configurations to be loaded"),
         preprocess: bool = typer.Option(False, help="Perform the Preprocessing Experiments"),
-        gen: bool = typer.Option(True, help="Perform the Generation Experiments (DP-CGANs)"),
-        onto: bool = typer.Option(True, help="Perform the Generation Experiments (ONTO-CGANs)")
+        gen: bool = typer.Option(False, help="Perform the Generation Experiments (DP-CGANs)"),
+        onto: bool = typer.Option(False, help="Perform the Generation Experiments (ONTO-CGANs)"),
+        evaluate: bool = typer.Option(False, help="Perform Evaluation Steps")
 ):
     if preprocess:
         experiment_type = "Preprocessing"
+    elif evaluate:
+        experiment_type = "Evaluation"
     elif gen:
         experiment_type = "Generation"
     elif onto:
@@ -162,6 +171,8 @@ def cli_experiments(
 
     if preprocess:
         experiments_preprocess(loader_config)
+    elif evaluate:
+        experiments_evaluate(loader_config)
     elif gen:
         if onto:
             experiments_onto_cgans(loader_config)
@@ -169,20 +180,30 @@ def cli_experiments(
             experiments_dp_cgans(loader_config)
 
 
+def experiments_evaluate(loader_config: str or Config):
+    models = loader_config.get_nested('models')
 
-def experiments_preprocess_old(loader_config: str or Config):
-    experiments_directory = get_or_create_directory(loader_config.get_nested('directory'), error=True)
-    files = loader_config.get_nested('files')
+    for model_name in models:
+        model_enum = ExperimentModelType(model_name)
 
-    log(text=f"Performing Preprocessing Experiments on {len(files)} configurations...", level=LogLevel.INFO)
+        local_config = loader_config
 
-    for file in files:
-        log(text=f"Starting Preprocessing experiment {file}.", level=LogLevel.INFO)
+        result_file_name = f"results_{model_name}.csv"
+        local_config.config['results']['file'] = result_file_name
 
-        file_name = f"{file}.json"
-        experiment_config = load_config(create_path(experiments_directory, file_name, create=False))
+        if model_enum == ExperimentModelType.LOGISTIC_REGRESSION:
+            model = LogisticRegressionModel(local_config)
+        elif model_enum == ExperimentModelType.DECISION_TREE:
+            model = DecisionTreeModel(local_config)
+        elif model_enum == ExperimentModelType.RANDOM_FOREST:
+            model = RandomForestModel(local_config)
+        else:
+            raise NotImplementedError("Unknown model classifier is selected for evaluation.")
 
-        cli_preprocess(experiment_config)
+        model.fit()
+        model.evaluate()
+
+        log(f"Model Evaluated: {model_name}", level=LogLevel.INFO)
 
 
 def experiments_preprocess(loader_config: str or Config):
@@ -326,7 +347,8 @@ def experiments_onto_cgans(loader_config: str or Config):
                                             log(f"Starting W2V epochs \"{w2v_epochs}\".", level=LogLevel.INFO)
 
                                             for w2v_dimensions in w2v_dimensions_list:
-                                                log(f"Starting W2V Dimensions \"{w2v_dimensions}\".", level=LogLevel.INFO)
+                                                log(f"Starting W2V Dimensions \"{w2v_dimensions}\".",
+                                                    level=LogLevel.INFO)
 
                                                 for w2v_min_count in w2v_min_count_list:
                                                     log(f"Starting W2V Min Count \"{w2v_min_count}\".",
@@ -337,20 +359,29 @@ def experiments_onto_cgans(loader_config: str or Config):
                                                     # (preprocessing)_(batch_size)_(gen_size)_(dimensions)_(epochs)_(discriminator_steps)
                                                     current_directory_name = f'{preprocessing}_{batch_size}_{gen_size}_{dimensions}_{epochs}_{discriminator_steps}_{num_walks}_{walk_length}_{alpha}_{w2v_epochs}_{w2v_dimensions}_{w2v_min_count}'
                                                     directory = get_or_create_directory(
-                                                        config.get_nested('dp_cgans', 'files', 'directory') % current_directory_name)
+                                                        config.get_nested('dp_cgans', 'files',
+                                                                          'directory') % current_directory_name)
                                                     config.config['dp_cgans']['files']['directory'] = directory
 
                                                     input_data_path = create_path(preprocessing_directory,
-                                                                                  config.get_nested('dp_cgans', 'files', 'input'), create=False)
+                                                                                  config.get_nested('dp_cgans', 'files',
+                                                                                                    'input'),
+                                                                                  create=False)
                                                     config.config['dp_cgans']['files']['input'] = input_data_path
 
                                                     output_data_path = create_path(directory,
-                                                                                   config.get_nested('dp_cgans', 'files', 'output'),
+                                                                                   config.get_nested('dp_cgans',
+                                                                                                     'files', 'output'),
                                                                                    create=True)
                                                     config.config['dp_cgans']['files']['output'] = output_data_path
 
-                                                    embedding_directory = get_or_create_directory(directory, config.get_nested('embedding', 'files', 'directory'))
-                                                    config.config['embedding']['files']['directory'] = embedding_directory
+                                                    embedding_directory = get_or_create_directory(directory,
+                                                                                                  config.get_nested(
+                                                                                                      'embedding',
+                                                                                                      'files',
+                                                                                                      'directory'))
+                                                    config.config['embedding']['files'][
+                                                        'directory'] = embedding_directory
 
                                                     new_references = []
 
@@ -363,14 +394,17 @@ def experiments_onto_cgans(loader_config: str or Config):
                                                     config.config['dp_cgans']['gen_size'] = gen_size
                                                     config.config['dp_cgans']['dimensions'] = dimensions
                                                     config.config['dp_cgans']['epochs'] = epochs
-                                                    config.config['dp_cgans']['discriminator_steps'] = discriminator_steps
+                                                    config.config['dp_cgans'][
+                                                        'discriminator_steps'] = discriminator_steps
 
                                                     # Onto Specific
                                                     config.config['embedding']['random_walks']['num_walks'] = num_walks
-                                                    config.config['embedding']['random_walks']['walk_length'] = walk_length
+                                                    config.config['embedding']['random_walks'][
+                                                        'walk_length'] = walk_length
                                                     config.config['embedding']['random_walks']['alpha'] = alpha
                                                     config.config['embedding']['word2vec']['epochs'] = w2v_epochs
-                                                    config.config['embedding']['word2vec']['dimensions'] = w2v_dimensions
+                                                    config.config['embedding']['word2vec'][
+                                                        'dimensions'] = w2v_dimensions
                                                     config.config['embedding']['word2vec']['min_count'] = w2v_min_count
 
                                                     iteration_information = f"preprocessing: {preprocessing}\nbatch_size: {batch_size}\ngen_size: {gen_size}\ndimensions: {dimensions}\nepochs: {epochs}\ndiscriminator_steps: {discriminator_steps}\nnum_walks: {num_walks}\nwalk_length: {walk_length}\nalpha: {alpha}\nw2v_epochs: {w2v_epochs}\nw2v_dimensions: {w2v_dimensions}\nw2v_min_count: {w2v_min_count}"

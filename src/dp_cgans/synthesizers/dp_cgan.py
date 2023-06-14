@@ -588,22 +588,24 @@ class DPCGANSynthesizer(BaseSynthesizer):
                 loss_g.backward()
                 optimizerG.step()
 
-            if self._verbose:
-                ######## ADDED ########
-                now = datetime.now()
-                current_time = now.strftime("%H:%M:%S")
 
-                row = pd.DataFrame({
-                        "time": current_time,
-                        "epoch": i+1,
-                        "loss_g": f"{loss_g.detach().cpu(): .4f}",
-                        "loss_d": f"{loss_d.detach().cpu(): .4f}"
-                    }, columns=loss_columns, index=[0])
-                loss_results = pd.concat([loss_results, row])
+            ######## ADDED ########
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+
+            row = pd.DataFrame({
+                "time": current_time,
+                "epoch": i+1,
+                "loss_g": f"{loss_g.detach().cpu(): .4f}",
+                "loss_d": f"{loss_d.detach().cpu(): .4f}"
+            }, columns=loss_columns, index=[0])
+            loss_results = pd.concat([loss_results, row])
 
                 # Calculate the current privacy cost using the accountant
                 # https://github.com/BorealisAI/private-data-generation/blob/master/models/dp_wgan.py
                 # https://github.com/tensorflow/privacy/tree/master/tutorials/walkthrough
+
+            if self._verbose:
 
                 print(current_time, f"Epoch {i + 1}, Loss G: {loss_g.detach().cpu(): .4f},"
                                     f"Loss D: {loss_d.detach().cpu(): .4f}", flush=True)
