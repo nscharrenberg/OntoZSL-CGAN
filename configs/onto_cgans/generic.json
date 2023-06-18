@@ -1,10 +1,18 @@
 {
   "verbose": true,
   "dp_cgans": {
+    "discriminator_steps": 1,
+    "epochs": 1,
+    "batch_size": 100,
+    "gen_size": 100,
+    "pac": 10,
+    "embedding_dim": 128,
+    "generator_dim": [128, 128, 128],
+    "discriminator_dim": [128, 128, 128],
     "files": {
-      "directory": "resources/dp_cgans/12_col",
+      "directory": "../experiments/onto_cgans/data/%s",
       "input": "patient_data/seen.csv",
-      "output": "patient_data/generated.csv"
+      "output": "generated.csv"
     },
     "results": {
       "directory": "results",
@@ -17,40 +25,32 @@
     "primary_key": null,
     "constraints": null,
     "table_metadata": null,
-    "embedding_dim": 128,
-    "generator_dim": [128, 128, 128],
-    "discriminator_dim": [128, 128, 128],
-    "generator_lr": 2e-4,
+    "generator_lr": 1e-4,
     "generator_decay": 1e-6,
-    "discriminator_lr": 2e-4,
+    "discriminator_lr": 1e-4,
     "discriminator_decay": 1e-6,
-    "batch_size": 200,
-    "discriminator_steps": 1,
     "log_frequency": true,
-    "epochs": 10,
-    "pac": 10,
     "cuda": true,
     "rounding": "auto",
     "min_value": "auto",
     "max_value": "auto",
-    "private": false,
-    "gen_size": 100
+    "private": false
   },
   "embedding": {
     "files": {
-      "directory": "resources/dp_cgans/12_col/embedding"
+      "directory": "embedding"
     },
     "model": {
-      "load": true,
-      "save": false,
+      "load": false,
+      "save": true,
       "use_root": true,
       "directory": "model",
       "file": "model.embedding",
       "save_key_vectors": true
     },
     "datasets": {
-      "use_root": true,
-      "directory": "dataset",
+      "use_root": false,
+      "directory": "resources/preprocess/merged",
       "training": "merged.rdf",
       "testing": null,
       "validation": null
@@ -84,30 +84,8 @@
       "min_count": 3
     },
     "references": [
-      "resources/dp_cgans/12_col/embedding/dictionaries/HPO.dict",
-      "resources/dp_cgans/12_col/embedding/dictionaries/ORDO.dict"
+      "../experiments/preprocessing/data/%s/dictionaries/HPO.dict",
+      "../experiments/preprocessing/data/%s/dictionaries/ORDO.dict"
     ]
-  },
-  "zsl": {
-    "enabled": false,
-    "files": {
-      "directory": "resources/12_col/5_patients/zsl"
-    },
-    "class_header": "rare_disease",
-    "model": {
-      "name": "bert-base-uncased",
-      "unknown_class": "unknown",
-      "threshold": 0.8,
-      "load": false,
-      "save": true,
-      "prompt": false,
-      "files": {
-        "use_root": true,
-        "directory": "model",
-        "model": "model.pkl",
-        "results": true,
-        "output": "results.csv"
-      }
-    }
   }
 }

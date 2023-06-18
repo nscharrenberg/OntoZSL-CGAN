@@ -1,16 +1,16 @@
 {
-  "models": ["logistic_regression", "decision_tree"],
+  "models": ["logistic_regression", "decision_tree", "random_forest"],
   "dataset": {
-    "directory": "../experiments/dp_cgans/data/25_10_500_100000_128_1_1_15_6_0.01_15_25_3",
+    "directory": "../experiments/onto_cgans/data/1000_30_500_123000_128_200_10_15_6_0.01_15_25_3",
     "use_root": false,
-    "training": "../experiments/onto_cgan/data/25_10_500_1000000_128_1_1_15_6_0.01_15_25_3/generated.csv",
-    "testing": "../experiments/dp_cgans/data/25_10_500_1000000_128_1_1/generated.csv"
+    "training": "../experiments/preprocessing/data/1000_30/patient_data/seen.csv",
+    "testing":  "../experiments/dp_cgans/data/WORKING_1000_30_500_123000_128_200_10/generated.csv"
   },
   "results": {
-    "directory": "../experiments/classifiers",
+    "directory": "resources/experiments/classifiers/onto_cgans/test6",
     "file": "results_%s.csv"
   },
   "header_class": "rare_disease",
-  "test_size": 0.2,
+  "test_size": 0.1,
   "seed": 42
 }

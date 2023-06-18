@@ -1,0 +1,26 @@
+{
+    "config": "configs/onto_cgans/generic.json",
+    "settings": {
+        "dimensions": [128],
+        "batch_size": [500],
+        "discriminator_steps": [10],
+        "epochs": [200],
+        "gen_size": [123000],
+        "preprocessing": ["1000_30"],
+        "embedding": {
+            "walks": {
+                "num_walks": [15],
+                "walk_length": [6],
+                "alpha": [0.01]
+            },
+            "word2vec": {
+                "epochs": [15],
+                "dimensions": [25],
+                "min_count": [3]
+            }
+        }
+    },
+    "preprocessing": {
+        "directory": "../experiments/preprocessing/data/%s"
+    }
+}

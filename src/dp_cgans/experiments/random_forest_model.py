@@ -5,4 +5,4 @@ from dp_cgans.experiments.experiment_model import ExperimentModel
 
 class RandomForestModel(ExperimentModel):
     def _get_model(self):
-        self._model = RandomForestClassifier()
+        self._model = RandomForestClassifier(random_state=42)

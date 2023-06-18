@@ -89,6 +89,10 @@ class ExperimentModel:
         y_pred = self._predict()
         y_true = self._data['testing']['labels']
 
+        df = pd.DataFrame(self._data['testing']['features'])
+        df['y_pred'] = y_pred
+        df['y_true'] = y_true
+
         # Accuracy of the Model
         accuracy = accuracy_score(y_true, y_pred)
 
@@ -115,6 +119,7 @@ class ExperimentModel:
 
         result_directory = self._config.get_nested('results', 'directory')
         result_file = create_path(result_directory, self._config.get_nested('results', 'file'), create=True)
+        data_file = create_path(result_directory, 'data.csv', create=False)
 
         self.score = {
             "accuracy": accuracy,
@@ -126,5 +131,9 @@ class ExperimentModel:
 
         result_df = pd.DataFrame([self.score], columns=['accuracy', 'f1', 'weighted_auc', 'macro_auc', 'micro_auc'])
         result_df.to_csv(result_file, encoding="utf-8",
+                         index=False,
+                         header=True)
+
+        df.to_csv(data_file, encoding="utf-8",
                          index=False,
                          header=True)
