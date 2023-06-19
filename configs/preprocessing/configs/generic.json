@@ -1,6 +1,6 @@
 {
     "verbose": true,
-    "directory": "../experiments/preprocessing/data/%s",
+    "directory": "../experiments/preprocessing/test_data/%s",
     "downloads": {
       "use_root": false,
       "directory": "../experiments/preprocessing/downloads"
