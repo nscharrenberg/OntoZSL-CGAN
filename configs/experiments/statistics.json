@@ -4,5 +4,6 @@
     "dp_cgans": "../experiments/dp_cgans/data/WORKING_1000_30_500_123000_128_200_10/generated.csv",
     "onto_cgans": "../experiments/onto_cgans/data/1000_30_500_123000_128_200_10_15_6_0.01_15_25_3/generated.csv"
   },
-  "output_directory": "../experiments/results/statistics"
+  "output_directory": "../experiments/results/statistics",
+  "class_header": "rare_disease"
 }
