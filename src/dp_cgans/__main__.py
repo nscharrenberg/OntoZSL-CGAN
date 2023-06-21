@@ -6,6 +6,7 @@ from dp_cgans.experiments.ExperimentModelType import ExperimentModelType
 from dp_cgans.experiments.decision_tree_model import DecisionTreeModel
 from dp_cgans.experiments.logistic_regression_model import LogisticRegressionModel
 from dp_cgans.experiments.random_forest_model import RandomForestModel
+from dp_cgans.experiments.statistics.evaluate import statistical_evaluation
 from dp_cgans.utils import Config
 
 mowl.init_jvm("5g")
@@ -151,7 +152,8 @@ def cli_experiments(
         preprocess: bool = typer.Option(False, help="Perform the Preprocessing Experiments"),
         gen: bool = typer.Option(False, help="Perform the Generation Experiments (DP-CGANs)"),
         onto: bool = typer.Option(False, help="Perform the Generation Experiments (ONTO-CGANs)"),
-        evaluate: bool = typer.Option(False, help="Perform Evaluation Steps")
+        evaluate: bool = typer.Option(False, help="Perform Evaluation Steps"),
+        stats: bool = typer.Option(False, help="Perform Statistical Evaluation")
 ):
     if preprocess:
         experiment_type = "Preprocessing"
@@ -161,6 +163,8 @@ def cli_experiments(
         experiment_type = "Generation"
     elif onto:
         experiment_type = "Ontology Generation"
+    elif stats:
+        experiment_type = "Statistical Evaluation"
     else:
         raise Exception("Unable to perform experiments when \"--preprocess\" or \"--gen\" is not defined")
 
@@ -171,6 +175,8 @@ def cli_experiments(
 
     if preprocess:
         experiments_preprocess(loader_config)
+    elif stats:
+        experiments_statistical_evaluation(loader_config)
     elif evaluate:
         experiments_evaluate(loader_config)
     elif gen:
@@ -178,6 +184,10 @@ def cli_experiments(
             experiments_onto_cgans(loader_config)
         else:
             experiments_dp_cgans(loader_config)
+
+
+def experiments_statistical_evaluation(loader_config: str or Config):
+    statistical_evaluation(loader_config)
 
 
 def experiments_evaluate(loader_config: str or Config):

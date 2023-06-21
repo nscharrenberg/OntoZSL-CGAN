@@ -49,6 +49,7 @@ oxrdflib = "^0.3.4"
 transformers = "^4.29.2"
 sentence-transformers = "^2.2.2"
 progress = "^1.6"
+seaborn = "^0.12.2"
 
 
 [tool.poetry.dev-dependencies]
