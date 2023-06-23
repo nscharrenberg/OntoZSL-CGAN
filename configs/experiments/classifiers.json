@@ -1,0 +1,16 @@
+{
+  "models": ["logistic_regression", "decision_tree", "random_forest"],
+  "dataset": {
+    "directory": "../experiments/onto_cgans/data/1000_30_500_123000_128_200_10_15_6_0.01_15_25_3",
+    "use_root": false,
+    "training": "../experiments/preprocessing/data/1000_30/patient_data/seen.csv",
+    "testing":  "../experiments/preprocessing/test_data/250_30/patient_data/seen.csv"
+  },
+  "results": {
+    "directory": "../experiments/results/baseline/1000_30_raw",
+    "file": "dp_cgans_testing_%s.csv"
+  },
+  "header_class": "rare_disease",
+  "test_size": 0.1,
+  "seed": 42
+}

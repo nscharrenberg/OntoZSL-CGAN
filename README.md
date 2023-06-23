@@ -127,6 +127,54 @@ model.sample(100)
   ```
 -->
 
+## Experiments
+### Preprocessing
+Make the necessary adjustments to `configs/preprocess/load.json` and `configs/preprocess/generic.json`.
+
+Then run `dp_cgans --preprocess --loader configs/preprocess/load.json`
+
+#### Necessary Ontology Files
+The following files are required:
+- HOOM.owl
+- hp.obo
+- hpo.xml (products_en4.xml)
+- ordo.owl
+
+If you do not have these, they'll automatically be downloaded for you.
+You will still have to merge the Datasets together and upload it to Fuseki.
+The application will tell you when you need to do this, as it'll ask for a SparQL URL.
+
+##### Merging HP, HOOM and ORDO
+**Note**: There's no implementation yet to merge the `hp.obo` into the `hoom.owl` (called `merged_hoom.owl`) and to then merge the `ordo.owl` into the `merged_hoom.owl` (called `merged_ordo_hoom.owl`).
+So you can use Protege to merge perform the above merging steps and then save the new ontology dataset as a turtle file (ttl), an rdf/xml file (.rdf/.owl) and owl/xml file (.owx/.owl) 
+**Note**: Later-on we'll only require 1 file-type to be exported manually, or preferably none at all and it all being done automatically.
+**Note**: You'll only need to save a copy of this in turtle (.ttl) format if you'd like to import it into a sparQL database such as Apache Jena Fuseki.
+
+
+##### Setup SPARQL Server
+**Note**: We'll use Apache Jena Fuseki as our SPARQL server. You are however, not limited to using other alternatives.
+**Note**: Fuseki may throw a `java heap space` exception when using an `in-memory` database. A persistent one is therefore recommended.
+
+1. Setup Apache Jena Fuseki as per their [documentation](https://jena.apache.org/documentation/fuseki2/).
+2. Create a new Database and upload the merged `.ttl` dataset to SPARQl. )
+3. Enter the sparql url into the terminal and press enter (e.g. http://localhost:3030/merged/query)
+
+Once it is finished, it'll show you where the patient_data is located.
+
+
+### DP-CGANS experiments
+Make the necessary adjustments to `configs/dp_cgans/load.json` and `configs/dp_cgans/generic.json`.
+Then run `dp_cgans --gen --loader configs/dp_cgans/load.json`
+
+### Onto-CGANS Experiments
+Make the necessary adjustments to `configs/onto_cgans/load.json` and `configs/onto_cgans/generic.json`.
+Then run `dp_cgans --gen --onto --loader configs/onto_cgans/load.json`
+
+### OntoZSL-CGANS Experiments
+Make the necessary adjustments to `configs/ontozsl_cgans/load.json` and `configs/ontozsl_cgans/generic.json`.
+
+Then run `dp_cgans --gen --onto  --loader configs/ontozsl_cgans/load.json`
+
 
 ## 🧑‍💻 Development setup
 
