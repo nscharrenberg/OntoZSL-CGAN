@@ -1,14 +1,13 @@
 [tool.poetry]
 name = "dp-cgans"
-version = "0.0.4"
-description = "A library to generate synthetic tabular data using Conditional Generative Adversary Networks (GANs) combined with Differential Privacy techniques."
-# description = "This package is extended from SDV (https://github.com/sdv-dev/SDV), CTGAN (https://github.com/sdv-dev/CTGAN), and Differential Privacy in GANs (https://github.com/civisanalytics/dpwgan). The author modified the conditional matrix and cost functions to emphasize on the relations between variables. The main changes are in ctgan/synthesizers/ctgan.py ../data_sampler.py ../data_transformer.py"
-authors = ["Chang Sun <sunchang0124@gmail.com>", "Leopold Cudilla <leopoldcudilla@gmail.com>", "Vincent Emonet <vincent.emonet@gmail.com>"]
+version = "0.0.5"
+description = "A library to generate synthetic tabular data using Conditional Generative Adversary Networks (GANs) combined with Differential Privacy, Ontology Embedding and Zero-Shot Learning techniques."
+authors = ["Chang Sun <sunchang0124@gmail.com>", "Leopold Cudilla <leopoldcudilla@gmail.com>", "Vincent Emonet <vincent.emonet@gmail.com>", "Noah Scharrenberg <nscharrenberg@hotmail.com>"]
 readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/sunchang0124/dp_cgans"
-repository = "https://github.com/sunchang0124/dp_cgans"
-keywords = [ "CGAN", "synthetic data", "DP", "Differential Privacy", "GAN" ]
+homepage = "https://github.com/nscharrenberg/OntoZSL-DPCGAN"
+repository = "https://github.com/nscharrenberg/OntoZSL-DPCGAN"
+keywords = [ "CGAN", "synthetic data", "DP", "Differential Privacy", "GAN", "Ontologies", "ZSL", "LLM" ]
 include = [
     "LICENSE",
 ]
@@ -39,6 +38,16 @@ copulas = "*"
 pyreadstat = "*"
 sdv = "0.14.0"
 typer = "*"
+mowl-borg = {path = "mowl/mowl_borg-0.2.0-py38-none-any.whl", develop = true}
+owlready2 = "^0.41"
+rdflib = "^6.3.2"
+jupyter = "^1.0.0"
+nltk = "^3.8.1"
+owl2vec-star = {git = "https://github.com/cudillal/OWL2Vec-Star.git"}
+oxrdflib = "^0.3.4"
+transformers = "^4.29.2"
+sentence-transformers = "^2.2.2"
+progress = "^1.6"
 
 
 [tool.poetry.dev-dependencies]
