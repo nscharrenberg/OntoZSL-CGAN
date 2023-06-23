@@ -16,7 +16,7 @@ from dp_cgans.experiments.preprocess.csv_to_txt import read_dataset, get_sub_cla
 from dp_cgans.experiments.preprocess.sparql import build_dictionary, populate_rd_sets
 from dp_cgans.experiments.preprocess.utils import get_headers, find_xml, get_diagnostic_criteria_entities, \
     get_frequency_association_entities, get_frequency_distribution, get_orpha_iri
-from dp_cgans.utils import Config
+from dp_cgans.utils.config import Config
 from dp_cgans.utils.logging import log, LogLevel
 from dp_cgans.utils.files import download, get_or_create_directory
 

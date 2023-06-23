@@ -5,7 +5,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from dp_cgans.utils import Config
+from dp_cgans.utils.config import Config
 from dp_cgans.utils.data_types import load_config
 from dp_cgans.utils.files import create_path, load_csv_with_x_and_y
 from dp_cgans.utils.logging import log

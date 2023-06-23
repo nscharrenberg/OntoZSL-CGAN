@@ -1,0 +1,7 @@
+{
+    "config": "configs/preprocess/generic.json",
+    "settings": {
+        "patients_per_rd": [10],
+        "max_columns": [30]
+    }
+}

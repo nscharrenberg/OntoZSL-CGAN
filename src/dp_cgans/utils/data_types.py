@@ -1,4 +1,4 @@
-from dp_cgans.utils import Config
+from dp_cgans.utils.config import Config
 from dp_cgans.utils.logging import log, LogLevel
 
 

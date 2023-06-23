@@ -1,0 +1,71 @@
+{
+    "verbose": true,
+    "directory": "../experiments_final/preprocessing/data/%s",
+    "downloads": {
+      "use_root": false,
+      "directory": "../experiments_final/preprocessing/downloads"
+    },
+    "convert": {
+      "files": {
+        "directory": "converted",
+        "triples": "triples.txt",
+        "triples_names": "triples_names.txt",
+        "entities": "entities.dict",
+        "entities_names": "entities_names.dict",
+        "relations": "relations.dict"
+      }
+    },
+    "train_test": {
+      "files":  {
+        "directory": "dataset",
+        "seen": "seen.pkl",
+        "unseen": "unseen.pkl"
+      },
+      "populate": {
+        "method": "selected_rds",
+        "seen": [
+          "http://www.orpha.net/ORDO/Orphanet_231401",
+          "http://www.orpha.net/ORDO/Orphanet_29073",
+          "http://www.orpha.net/ORDO/Orphanet_729",
+          "http://www.orpha.net/ORDO/Orphanet_3226",
+          "http://www.orpha.net/ORDO/Orphanet_86843",
+          "http://www.orpha.net/ORDO/Orphanet_98827",
+          "http://www.orpha.net/ORDO/Orphanet_514",
+          "http://www.orpha.net/ORDO/Orphanet_517",
+          "http://www.orpha.net/ORDO/Orphanet_318",
+          "http://www.orpha.net/ORDO/Orphanet_824",
+          "http://www.orpha.net/ORDO/Orphanet_520",
+          "http://www.orpha.net/ORDO/Orphanet_139399"
+        ],
+        "unseen": [
+          "http://www.orpha.net/ORDO/Orphanet_3318",
+          "http://www.orpha.net/ORDO/Orphanet_521",
+          "http://www.orpha.net/ORDO/Orphanet_512"
+        ]
+      }
+    },
+    "generator": {
+      "files":  {
+        "directory": "patient_data",
+        "seen": "seen.csv",
+        "unseen": "unseen.csv"
+      },
+      "small_file": false,
+      "use_ontology": true,
+      "patients_per_rd": 10,
+      "sort": true,
+      "print_every": 0,
+      "del_col_th": 0,
+      "max_columns": 5
+    },
+    "dictionaries": {
+      "files": {
+        "directory": "dictionaries",
+        "hpo": "HPO.dict",
+        "ordo": "ORDO.dict"
+      }
+    },
+    "sparql": {
+        "url": "http://localhost:3030/merged/query"
+    }
+  }

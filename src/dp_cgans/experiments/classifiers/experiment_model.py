@@ -4,7 +4,8 @@ from sklearn.metrics import roc_auc_score, f1_score, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, label_binarize
 
-from dp_cgans.utils import Config, load_config
+from dp_cgans.utils.config import Config
+from dp_cgans.utils.data_types import load_config
 from dp_cgans.utils.files import get_or_create_directory, create_path
 
 

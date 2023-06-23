@@ -25,7 +25,8 @@ import scipy.stats
 from datetime import datetime
 from contextlib import redirect_stdout
 from dp_cgans.rdp_accountant import compute_rdp, get_privacy_spent
-from dp_cgans.utils import Config, load_config
+from dp_cgans.utils.config import Config
+from dp_cgans.utils.data_types import load_config
 from dp_cgans.utils.data_types import tuplify
 from dp_cgans.utils.files import get_or_create_directory, create_path
 from dp_cgans.utils.logging import log
@@ -191,6 +192,12 @@ class OntoZSLCGANSynthesizer(BaseSynthesizer):
         self._embedding = OntologyEmbedding(self._config)
         self._embedding.fit_or_load()
         log(text=f"Finished Onto DP-CGAN Initialization", verbose=self._verbose)
+
+    def _init_verbose(self):
+        self._verbose = self._config.get_nested('verbose')
+
+        if self._verbose is None or not isinstance(self._verbose, bool):
+            self._verbose = False
 
     @staticmethod
     def _gumbel_softmax(logits, tau=1, hard=False, eps=1e-10, dim=-1):

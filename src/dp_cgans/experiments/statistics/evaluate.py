@@ -6,8 +6,8 @@ import pandas as pd
 from scipy.stats import pointbiserialr
 from sdv.evaluation import evaluate
 
-from dp_cgans.utils import Config
-from dp_cgans.utils import load_config
+from dp_cgans.utils.config import Config
+from dp_cgans.utils.data_types import load_config
 from dp_cgans.utils.files import get_or_create_directory, create_path
 
 warnings.filterwarnings("ignore")

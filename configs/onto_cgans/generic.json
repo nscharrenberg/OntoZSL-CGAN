@@ -10,7 +10,7 @@
     "generator_dim": [128, 128, 128],
     "discriminator_dim": [128, 128, 128],
     "files": {
-      "directory": "../experiments/onto_cgans/data/%s",
+      "directory": "../experiments_final/onto_cgans/data/%s",
       "input": "patient_data/seen.csv",
       "output": "generated.csv"
     },
@@ -50,7 +50,7 @@
     },
     "datasets": {
       "use_root": false,
-      "directory": "../experiments/preprocessing/data/%s/merged",
+      "directory": "../experiments_final/preprocessing/data/10_30/merged",
       "training": "merged.rdf",
       "testing": null,
       "validation": null
@@ -84,8 +84,8 @@
       "min_count": 3
     },
     "references": [
-      "../experiments/preprocessing/data/%s/dictionaries/HPO.dict",
-      "../experiments/preprocessing/data/%s/dictionaries/ORDO.dict"
+      "../experiments_final/preprocessing/data/%s/dictionaries/HPO.dict",
+      "../experiments_final/preprocessing/data/%s/dictionaries/ORDO.dict"
     ]
   }
 }

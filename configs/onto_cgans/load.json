@@ -3,10 +3,10 @@
     "settings": {
         "dimensions": [128],
         "batch_size": [500],
-        "discriminator_steps": [10],
-        "epochs": [200],
-        "gen_size": [123000],
-        "preprocessing": ["1000_30"],
+        "discriminator_steps": [1],
+        "epochs": [2],
+        "gen_size": [5000],
+        "preprocessing": ["10_30"],
         "embedding": {
             "walks": {
                 "num_walks": [15],
@@ -21,6 +21,6 @@
         }
     },
     "preprocessing": {
-        "directory": "../experiments/preprocessing/data/%s"
+        "directory": "../experiments_final/preprocessing/data/%s"
     }
 }

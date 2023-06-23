@@ -5,7 +5,8 @@ import numpy as np
 from dp_cgans.ontozsl_base import OntoZSLBaseTabularModel
 from dp_cgans.synthesizers.dp_cgan import DPCGANSynthesizer
 from dp_cgans.synthesizers.ontozsl_cgan import OntoZSLCGANSynthesizer
-from dp_cgans.utils import Config, load_config
+from dp_cgans.utils.config import Config
+from dp_cgans.utils.data_types import load_config
 
 
 class OntoZSLCGANModel(OntoZSLBaseTabularModel):

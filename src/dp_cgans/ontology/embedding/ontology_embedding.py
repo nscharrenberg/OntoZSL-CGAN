@@ -9,7 +9,7 @@ from mowl.projection import Edge
 
 from dp_cgans.ontology.embedding.projections import create_projection, ProjectionType
 from dp_cgans.ontology.embedding.random_walks import create_random_walker, WalkerType
-from dp_cgans.utils import Config
+from dp_cgans.utils.config import Config
 from dp_cgans.utils.data_types import load_config
 from dp_cgans.utils.files import create_path, get_or_create_directory, recode
 from dp_cgans.utils.logging import log

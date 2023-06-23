@@ -20,7 +20,7 @@ class Config:
             log(text=f"The expected path \"{path}\" does not seem to be valid.", level=LogLevel.ERROR)
 
         with open(path, "r") as config_file:
-            self._config: dict = json.load(config_file)
+            self.config: dict = json.load(config_file)
 
     def get(self, key: str, data: dict = None):
         """
@@ -34,7 +34,7 @@ class Config:
         Returns:
             The value associated with the specified key, or None if the key is not found in the configuration data.
         """
-        current_config: dict = self._config
+        current_config: dict = self.config
 
         if data is not None:
             current_config: dict = data
@@ -57,7 +57,7 @@ class Config:
         if len(keys) <= 0:
             log(text=f"No keys to retrieve from configuration", level=LogLevel.ERROR)
 
-        current_config:dict = self._config
+        current_config:dict = self.config
 
         for key in keys:
             current_config = self.get(key, current_config)
