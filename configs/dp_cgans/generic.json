@@ -1,0 +1,39 @@
+{
+  "verbose": true,
+  "dp_cgans": {
+    "discriminator_steps": 1,
+    "epochs": 1,
+    "batch_size": 100,
+    "gen_size": 100,
+    "pac": 10,
+    "embedding_dim": 128,
+    "generator_dim": [128, 128, 128],
+    "discriminator_dim": [128, 128, 128],
+    "files": {
+      "directory": "../experiments/dp_cgans/data/%s",
+      "input": "patient_data/seen.csv",
+      "output": "generated.csv"
+    },
+    "results": {
+      "directory": "results",
+      "file": "results.csv"
+    },
+    "field_names": null,
+    "field_types": null,
+    "field_transformers": null,
+    "anonymize_fields": null,
+    "primary_key": null,
+    "constraints": null,
+    "table_metadata": null,
+    "generator_lr": 1e-4,
+    "generator_decay": 1e-6,
+    "discriminator_lr": 1e-4,
+    "discriminator_decay": 1e-6,
+    "log_frequency": true,
+    "cuda": true,
+    "rounding": "auto",
+    "min_value": "auto",
+    "max_value": "auto",
+    "private": false
+  }
+}
