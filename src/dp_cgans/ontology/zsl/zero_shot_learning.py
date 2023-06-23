@@ -102,31 +102,6 @@ class ZeroShotLearning:
         predicted_label = self._seen_classes.tolist()[highest_score_index]
         return predicted_label, score[highest_score_index]
 
-    def _predict2(self, embedding):
-        S = util.pytorch_cos_sim(embedding, self._fitted_model)
-        predicted_labels = []
-        predicted_scores = []
-
-        for i in range(embedding.shape[0]):
-            label_scores = S[i].tolist()
-            scored = sorted(
-                zip(self._seen_classes.unique(), label_scores),
-                key=lambda x: x[1],
-                reverse=True
-            )
-
-            pred, score = scored[0]
-            threshold = self._config.get_nested('zsl', 'model', 'threshold')
-            unknown_class = self._config.get_nested('zsl', 'model', 'unknown_class')
-
-            if score < threshold:
-                pred = unknown_class
-
-            predicted_scores.append(scored)
-            predicted_labels.append(pred)
-
-            return predicted_labels, predicted_scores
-
     def _get_dataset(self):
         log(text=f"Loading Dataset...", verbose=self._verbose)
 

@@ -751,10 +751,10 @@ class ONTODPCGANSynthesizer(BaseSynthesizer):
         data = data[:n]
 
         sampled_data = self._transformer.inverse_transform(data)
-        # Inserting the rare_disease column of the RDs used for embeddings
-        sampled_data.insert(loc=0, column='rare_disease', value=sampled_rds[:n])
+        class_header = self._config.get_nested('dataset', 'class_header')
+        sampled_data.insert(loc=0, column=class_header, value=sampled_rds[:n])
         if sort:
-            sampled_data = sampled_data.sort_values(by=['rare_disease'])
+            sampled_data = sampled_data.sort_values(by=[class_header])
 
         if self._config.get_nested('zsl', 'enabled'):
             # Perform Zero-shot Classification
